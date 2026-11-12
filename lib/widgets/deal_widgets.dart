@@ -353,13 +353,16 @@ class _DealContent extends StatelessWidget {
             ],
           ),
         ),
-        Floating(
-          distance: 8,
-          child: Text(
-            productEmoji(product),
-            style: const TextStyle(fontSize: 46),
+        if (product.imageUrl != null)
+          Product360(product: product, size: 76, radius: 14)
+        else
+          Floating(
+            distance: 8,
+            child: Text(
+              productEmoji(product),
+              style: const TextStyle(fontSize: 46),
+            ),
           ),
-        ),
       ],
     );
   }

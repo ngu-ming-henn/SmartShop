@@ -110,13 +110,31 @@ class ProductService {
   }
 
   /// Adds the demo catalogue (section 14: "create ~50 sample products").
-  /// Existing products are left untouched. Returns how many were added.
-  Future<int> seedSampleProducts(String staffId) async {
-    final existing = (await _products.get()).docs.map((d) => d.id).toSet();
+  /// Existing products keep their stock and prices; sample products loaded
+  /// before descriptions existed get their description. Returns how many
+  /// products were added and how many got a description.
+  Future<({int added, int described})> seedSampleProducts(
+    String staffId,
+  ) async {
+    final existing = {
+      for (final d in (await _products.get()).docs) d.id: d.data(),
+    };
     final batch = _db.batch();
     var added = 0;
+    var described = 0;
     for (final p in buildSampleProducts(DateTime.now())) {
-      if (existing.contains(p.barcode)) continue;
+      final old = existing[p.barcode];
+      if (old != null) {
+        // Only fill it in if staff have not renamed or described it.
+        final hasText = ((old['description'] as String?) ?? '').trim() != '';
+        if (!hasText && old['name'] == p.name && p.description != null) {
+          batch.update(_products.doc(p.barcode), {
+            'description': p.description,
+          });
+          described++;
+        }
+        continue;
+      }
       batch.set(_products.doc(p.barcode), p.toNewMap());
       batch.set(
         _db.collection('stock_movements').doc(),
@@ -133,7 +151,7 @@ class ProductService {
       );
       added++;
     }
-    if (added > 0) await batch.commit();
-    return added;
+    if (added + described > 0) await batch.commit();
+    return (added: added, described: described);
   }
 }

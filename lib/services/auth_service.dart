@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -89,6 +91,21 @@ class AuthService {
     'studentId': studentId.trim().toUpperCase(),
     'phone': phone.trim(),
   });
+
+  /// Profile photo as a small JPEG (about 30 KB) in the profile document:
+  /// Firebase Storage needs the paid plan. `null` removes it. The rules let
+  /// users edit their own profile.
+  Future<void> updatePhoto(String uid, Uint8List? jpeg) {
+    if (jpeg != null && jpeg.length > maxPhotoBytes) {
+      throw const AppException(
+        'That photo is too big. Please choose another one.',
+      );
+    }
+    return _userRef(uid)
+        .update({'photo': jpeg == null ? FieldValue.delete() : Blob(jpeg)});
+  }
+
+  static const maxPhotoBytes = 300 * 1024;
 
   /// Checks the current password again (Firebase needs a recent login),
   /// then sets the new one.

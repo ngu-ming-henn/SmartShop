@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -8,10 +10,11 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/brand.dart';
 import '../../widgets/common.dart';
 import '../../widgets/motion.dart';
+import '../../widgets/user_avatar.dart';
 import '../auth/register_screen.dart';
 
-/// Edit name, Student / Staff ID and phone number. The email is the login,
-/// so it is shown but cannot be changed here.
+/// Edit photo, name, Student / Staff ID and phone number. The email is the
+/// login, so it is shown but cannot be changed here.
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -112,25 +115,56 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           padding: const EdgeInsets.all(20),
           children: [
             Center(
-              child: ListenableBuilder(
-                listenable: _name,
-                builder: (context, _) {
-                  final name = _name.text.trim();
-                  return CircleAvatar(
-                    radius: 40,
-                    backgroundColor: context.colors.secondaryContainer,
-                    child: Text(
-                      name.isEmpty ? '?' : name[0].toUpperCase(),
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        color: context.brand,
-                        fontWeight: FontWeight.w700,
+              child: Pressable(
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => changeProfilePhoto(context),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ListenableBuilder(
+                        listenable: _name,
+                        builder: (context, _) => UserAvatar(
+                          name: _name.text,
+                          photo: context.select<AuthProvider, Uint8List?>(
+                            (a) => a.user?.photo,
+                          ),
+                          radius: 48,
+                        ),
                       ),
-                    ),
-                  );
-                },
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            gradient: AppColors.brandGradient,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.scaffoldBackgroundColor,
+                              width: 3,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.photo_camera,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 6),
+            Center(
+              child: TextButton(
+                onPressed: () => changeProfilePhoto(context),
+                child: Text(context.tr('Change photo')),
+              ),
+            ),
+            const SizedBox(height: 12),
             for (var i = 0; i < fields.length; i++)
               FadeSlideIn(
                 delay: stagger(i),

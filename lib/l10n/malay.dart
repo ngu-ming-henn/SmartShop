@@ -136,13 +136,14 @@ const malayStrings = <String, String>{
   'Your email is your login and cannot be changed.':
       'E-mel anda ialah log masuk anda dan tidak boleh ditukar.',
   'Edit profile': 'Sunting profil',
+  'Change photo': 'Tukar gambar',
   'Save changes': 'Simpan perubahan',
   'Log out?': 'Log keluar?',
   'You can log in again any time.':
       'Anda boleh log masuk semula bila-bila masa.',
   'Cancel': 'Batal',
   'Account': 'Akaun',
-  'Name, ID and phone number': 'Nama, ID dan nombor telefon',
+  'Photo, name, ID and phone number': 'Gambar, nama, ID dan nombor telefon',
   'Keep your account safe': 'Pastikan akaun anda selamat',
   'Green points': 'Mata hijau',
   '{points} points': '{points} mata',
@@ -248,8 +249,10 @@ const malayStrings = <String, String>{
   'Add {count} sample products (food, drinks, snacks, stationery...) to try the app.': 'Tambah {count} produk contoh (makanan, minuman, snek, alat tulis...) untuk mencuba aplikasi.',
   'Load sample products': 'Muatkan produk contoh',
   'Load sample products?': 'Muatkan produk contoh?',
-  'Adds {count} demo products (food, drinks, snacks, stationery...) with stock and expiry dates. Existing products are not changed.': 'Menambah {count} produk demo (makanan, minuman, snek, alat tulis...) dengan stok dan tarikh luput. Produk sedia ada tidak diubah.',
+  'Adds {count} demo products (food, drinks, snacks, stationery...) with stock, expiry dates and descriptions. Existing products keep their stock and prices.': 'Menambah {count} produk demo (makanan, minuman, snek, alat tulis...) dengan stok, tarikh luput dan penerangan. Produk sedia ada kekal dengan stok dan harganya.',
   'Load': 'Muatkan',
+  'Added descriptions to {count} products.':
+      'Penerangan ditambah pada {count} produk.',
   'Sample products already loaded.': 'Produk contoh sudah dimuatkan.',
   'Packed. {name} has been notified.':
       'Telah dibungkus. {name} sudah dimaklumkan.',
@@ -327,6 +330,8 @@ const malayStrings = <String, String>{
   'No barcode? Generate an SK- code': 'Tiada kod bar? Jana kod SK-',
   'Product name': 'Nama produk',
   'Enter a name': 'Masukkan nama',
+  'Description (optional)': 'Penerangan (pilihan)',
+  'e.g. flavour, size, how to use it': 'cth. perisa, saiz, cara guna',
   'Category': 'Kategori',
   'Price': 'Harga',
   'Low-stock alert at': 'Amaran stok rendah pada',
@@ -493,8 +498,10 @@ const malayStrings = <String, String>{
       'Semak semula selepas penghantaran seterusnya.',
   'Order {no} is READY': 'Pesanan {no} SUDAH SEDIA',
   'Show your pickup QR at the counter': 'Tunjukkan QR ambilan anda di kaunter',
+  'Hidden until you open the app again. The map is also in Profile.': 'Disembunyikan sehingga anda membuka aplikasi semula. Peta juga ada di Profil.',
   'Open now · until {time}': 'Dibuka sekarang · sehingga {time}',
-  'Closed now': 'Ditutup sekarang',
+  'Closed now · opens {time}': 'Ditutup sekarang · dibuka {time}',
+  'Hide': 'Sembunyi',
   'AI Budget Planner': 'Perancang Bajet AI',
   'What can RM10 buy? Get 3 combos for your budget.':
       'RM10 boleh beli apa? Dapatkan 3 kombo ikut bajet anda.',
@@ -528,6 +535,7 @@ const malayStrings = <String, String>{
   'Code: {code}': 'Kod: {code}',
   'Scan again': 'Imbas semula',
   'Drag to turn': 'Seret untuk memusing',
+  'About this product': 'Tentang produk ini',
   'SAVE FOOD': 'SAVE FOOD',
   'Expires: {date} ({label})': 'Luput: {date} ({label})',
   'You save {saving} and earn +{points} green points each. Thanks for helping reduce food waste!': 'Anda jimat {saving} dan dapat +{points} mata hijau setiap satu. Terima kasih kerana membantu mengurangkan pembaziran makanan!',
@@ -544,6 +552,8 @@ const malayStrings = <String, String>{
   'Scan a barcode or SmartShop QR label':
       'Imbas kod bar atau label QR SmartShop',
   'Home': 'Utama',
+  'That photo is too big. Please choose another one.':
+      'Gambar itu terlalu besar. Sila pilih yang lain.',
   'Your email is not on the staff list yet. Ask a koperasi admin to add it in More → Staff accounts.': 'E-mel anda belum ada dalam senarai kakitangan. Minta admin koperasi menambahnya di Lagi → Akaun kakitangan.',
   'Order not ready for pickup. Tap "Accept & pack" first.':
       'Pesanan belum sedia untuk diambil. Tekan "Terima & bungkus" dahulu.',
@@ -563,6 +573,91 @@ const malayStrings = <String, String>{
       'Produk dengan kod {code} sudah wujud.',
   'Could not generate a free code, try again.':
       'Tidak dapat menjana kod kosong, cuba lagi.',
+  'Chocolate malt drink powder. Mix 3 spoons with hot or cold water, or milk.': 'Serbuk minuman coklat malt. Bancuh 3 sudu dengan air panas atau sejuk, atau susu.',
+  'Natural mineral water in a handy bottle. Refill the bottle to cut plastic waste.': 'Air mineral semula jadi dalam botol mudah dibawa. Isi semula botol untuk mengurangkan sisa plastik.',
+  'Isotonic drink that replaces fluids and minerals after sports or a long day.': 'Minuman isotonik yang menggantikan cecair dan mineral selepas bersukan atau hari yang panjang.',
+  'Instant milk tea with sugar and creamer. Just add hot water.':
+      'Teh susu segera dengan gula dan krimer. Hanya tambah air panas.',
+  'Fresh full cream milk. Keep chilled and finish within 3 days of opening.': 'Susu segar penuh krim. Simpan sejuk dan habiskan dalam 3 hari selepas dibuka.',
+  'Iced Milo made fresh at the koperasi counter.':
+      'Milo ais dibancuh segar di kaunter koperasi.',
+  'Soft white sandwich bread, great for toast or a quick breakfast.':
+      'Roti putih lembut, sesuai untuk roti bakar atau sarapan ringkas.',
+  'Colourful steamed layer cake, made fresh every morning.':
+      'Kuih lapis berwarna-warni yang dikukus segar setiap pagi.',
+  'Crispy pastry filled with spicy potato curry.':
+      'Pastri rangup berinti kari kentang pedas.',
+  'Coconut rice with sambal, egg, peanuts and anchovies, wrapped to go.': 'Nasi santan dengan sambal, telur, kacang dan ikan bilis, dibungkus untuk dibawa.',
+  'Tuna mayo with lettuce in soft bread. Keep chilled.':
+      'Tuna mayo dengan daun salad dalam roti lembut. Simpan sejuk.',
+  'Creamy strawberry yogurt, a light snack between classes. Keep chilled.':
+      'Yogurt strawberi berkrim, snek ringan antara kelas. Simpan sejuk.',
+  'Crunchy noodle snack you can eat straight from the pack.':
+      'Snek mi rangup yang boleh dimakan terus dari paket.',
+  'Thin, crispy salted potato chips.':
+      'Kerepek kentang nipis dan rangup, berperisa masin.',
+  'Milk chocolate bar for a quick energy boost.':
+      'Coklat susu untuk tenaga segera.',
+  'Plain, crispy crackers. Good with coffee, kaya or peanut butter.':
+      'Biskut kraker rangup. Sedap dengan kopi, kaya atau mentega kacang.',
+  'Soft chocolate muffin baked fresh. Best eaten today.':
+      'Muffin coklat lembut yang dibakar segar. Paling sedap dimakan hari ini.',
+  '500 sheets of white A4 paper for printing and assignments.':
+      '500 helai kertas A4 putih untuk mencetak dan tugasan.',
+  'Smooth 0.7 mm blue ballpoint pen.':
+      'Pen mata bulat biru 0.7 mm yang lancar.',
+  'Lined exam pad for tests and exams.':
+      'Pad peperiksaan bergaris untuk ujian dan peperiksaan.',
+  'Bright yellow highlighter for marking your notes.':
+      'Pen penanda kuning terang untuk menanda nota anda.',
+  'Neat correction tape, no waiting for it to dry.':
+      'Pita pembetul yang kemas, tidak perlu tunggu kering.',
+  'A5 lined notebook, 80 pages.': 'Buku nota A5 bergaris, 80 muka surat.',
+  '2B pencil, good for exams and drawing.':
+      'Pensel 2B, sesuai untuk peperiksaan dan melukis.',
+  'Soft facial tissue in a pack that fits in your pocket.':
+      'Tisu muka lembut dalam paket yang muat dalam poket.',
+  '70% alcohol hand sanitizer gel in a small bottle.':
+      'Gel pembersih tangan 70% alkohol dalam botol kecil.',
+  '3-ply disposable face masks, 10 pieces.':
+      'Pelitup muka pakai buang 3 lapis, 10 keping.',
+  'Compact foldable umbrella for sudden rain on campus.':
+      'Payung lipat kecil untuk hujan tiba-tiba di kampus.',
+  'Classic soft white bread from Gardenia, a breakfast favourite.':
+      'Roti putih lembut klasik Gardenia, pilihan kegemaran untuk sarapan.',
+  'Soft bun filled with sweet kaya (coconut jam).':
+      'Roti lembut berinti kaya manis.',
+  'Maggi curry noodles in a cup. Add hot water, wait 3 minutes and enjoy.': 'Mi kari Maggi dalam cawan. Tambah air panas, tunggu 3 minit dan nikmati.',
+  'Indonesian fried noodles with sweet soy sauce and fried shallots.':
+      'Mi goreng Indonesia dengan kicap manis dan bawang goreng.',
+  'Crispy pastry filled with chicken and potato curry.':
+      'Pastri rangup berinti kari ayam dan kentang.',
+  'Iced milk tea made fresh at the counter.':
+      'Teh susu ais dibancuh segar di kaunter.',
+  'Classic Coca-Cola. Best served cold.':
+      'Coca-Cola klasik. Paling sedap diminum sejuk.',
+  'Chocolate milk drink in a small pack with a straw.':
+      'Minuman susu coklat dalam kotak kecil dengan straw.',
+  'Ready-to-drink latte coffee for early classes.':
+      'Kopi latte sedia diminum untuk kelas awal pagi.',
+  'Crunchy corn snack with cheese flavour.':
+      'Snek jagung rangup berperisa keju.',
+  'Chocolate cookies with vanilla cream filling.':
+      'Biskut coklat berinti krim vanila.',
+  'Crunchy biscuits with peanut butter filling.':
+      'Biskut rangup berinti mentega kacang.',
+  '3 pads of coloured sticky notes for reminders and bookmarks.':
+      '3 pad nota lekat berwarna untuk peringatan dan penanda buku.',
+  'Scientific calculator for maths, engineering and statistics.':
+      'Kalkulator saintifik untuk matematik, kejuruteraan dan statistik.',
+  'Vanilla scented candle to make your room calm and cosy.':
+      'Lilin wangi vanila untuk bilik yang tenang dan selesa.',
+  'Small unscented tealight candles, about 4 hours each.':
+      'Lilin teh kecil tanpa bau, kira-kira 4 jam setiap satu.',
+  'Alkaline AA batteries for calculators, mice and remotes.':
+      'Bateri alkali AA untuk kalkulator, tetikus dan alat kawalan jauh.',
+  'Fluoride toothpaste for fresh breath and strong teeth.':
+      'Ubat gigi berfluorida untuk nafas segar dan gigi yang kuat.',
   'Quantity must be more than 0.': 'Kuantiti mesti lebih daripada 0.',
   'Not enough stock (only {left} left).':
       'Stok tidak mencukupi (tinggal {left} sahaja).',
@@ -608,6 +703,11 @@ const malayStrings = <String, String>{
   'Torch off': 'Matikan lampu',
   'Torch on': 'Hidupkan lampu',
   'Type code': 'Taip kod',
+  'Take a photo': 'Ambil gambar',
+  'Choose from gallery': 'Pilih dari galeri',
+  'Remove photo': 'Buang gambar',
+  'Photo removed.': 'Gambar dibuang.',
+  'Photo updated.': 'Gambar dikemas kini.',
   'At least 8 characters': 'Sekurang-kurangnya 8 aksara',
   'Needs at least 8 characters': 'Perlu sekurang-kurangnya 8 aksara',
   'A lowercase letter (a-z)': 'Satu huruf kecil (a-z)',

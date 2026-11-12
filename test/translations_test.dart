@@ -5,6 +5,7 @@ import 'package:smartshop/core/utils/format.dart';
 import 'package:smartshop/core/utils/password.dart';
 import 'package:smartshop/l10n/malay.dart';
 import 'package:smartshop/l10n/strings.dart';
+import 'package:smartshop/services/sample_data.dart';
 
 void main() {
   tearDown(() => AppStrings.language = AppStrings.english);
@@ -36,6 +37,13 @@ void main() {
       expiryLabel(DateTime(2026, 11, 12), from: DateTime(2026, 11, 9)),
       'Tamat tempoh dalam 3 hari',
     );
+  });
+
+  test('every sample product has a description in both languages', () {
+    for (final p in buildSampleProducts(DateTime(2026, 11, 12))) {
+      expect(p.description, isNotNull, reason: p.name);
+      expect(malayStrings[p.description], isNotNull, reason: p.description);
+    }
   });
 
   test('every text in tr(...) has a Malay translation', () {

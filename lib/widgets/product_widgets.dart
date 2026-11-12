@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -37,8 +38,8 @@ Color categoryColor(String category) => switch (category) {
   _ => const Color(0xFFC8E6C9),
 };
 
-/// Products have no photos yet, so each one gets an emoji that matches its
-/// name (first match wins), or its category.
+/// Products without a photo get an emoji that matches the name (first
+/// match wins), or the category.
 const _emojiByKeyword = <String, String>{
   'candle': '🕯️',
   'bread': '🍞',
@@ -116,7 +117,6 @@ class ProductImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tint = categoryColor(product.category);
     final placeholder = Container(
       width: size,
       height: size,
@@ -125,9 +125,7 @@ class ProductImage extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: context.isDark
-              ? [tint.withValues(alpha: 0.30), tint.withValues(alpha: 0.12)]
-              : [tint, tint.withValues(alpha: 0.45)],
+          colors: _tileColors(context, product),
         ),
         borderRadius: BorderRadius.circular(radius),
       ),
@@ -143,7 +141,8 @@ class ProductImage extends StatelessWidget {
         imageUrl: product.imageUrl!,
         width: size,
         height: size,
-        fit: BoxFit.cover,
+        // Whole product visible; transparent PNGs look best.
+        fit: BoxFit.contain,
         placeholder: (_, _) => placeholder,
         errorWidget: (_, _, _) => placeholder,
       ),
@@ -151,9 +150,112 @@ class ProductImage extends StatelessWidget {
   }
 }
 
-/// "Live 360°" product picture: turns slowly like on a turntable, with a
-/// floor shadow that narrows as it turns. With [interactive], drag sideways
-/// to turn it yourself (it starts turning again after a moment).
+/// Category colours for the emoji tile, blended onto the surface so they
+/// are solid: the layers behind it in [Product360] must not show through.
+List<Color> _tileColors(BuildContext context, Product product) {
+  final tint = categoryColor(product.category);
+  final base = context.colors.surface;
+  final (start, end) = context.isDark ? (0.30, 0.12) : (1.0, 0.45);
+  return [
+    Color.alphaBlend(tint.withValues(alpha: start), base),
+    Color.alphaBlend(tint.withValues(alpha: end), base),
+  ];
+}
+
+/// The side of a pack: its colour, and where the product is inside the
+/// square picture (0..1), so the side wall has the right size.
+typedef _PackSide = ({Color color, Rect bounds});
+
+final _packSides = <String, _PackSide>{};
+
+/// Reads a product photo once (cached): the colour along its left and
+/// right edges, a little darker, is what the side of the pack would look
+/// like. Null if the photo cannot be read.
+Future<_PackSide?> _photoPackSide(String url) async {
+  if (_packSides[url] case final side?) return side;
+  final stream = CachedNetworkImageProvider(url)
+      .resolve(ImageConfiguration.empty);
+  final loaded = Completer<ImageInfo?>();
+  late final ImageStreamListener listener;
+  listener = ImageStreamListener(
+    (info, _) {
+      stream.removeListener(listener);
+      if (!loaded.isCompleted) loaded.complete(info);
+    },
+    onError: (_, _) {
+      stream.removeListener(listener);
+      if (!loaded.isCompleted) loaded.complete(null);
+    },
+  );
+  stream.addListener(listener);
+  final info = await loaded.future;
+  if (info == null) return null;
+  try {
+    final image = info.image;
+    final data = await image.toByteData(
+      format: ui.ImageByteFormat.rawStraightRgba,
+    );
+    if (data == null) return null;
+    final w = image.width;
+    final h = image.height;
+    var r = 0, g = 0, b = 0, n = 0;
+    var minX = w, maxX = -1, minY = h, maxY = -1;
+    bool solid(int x, int y) => data.getUint8((y * w + x) * 4 + 3) > 200;
+    void add(int x, int y) {
+      final i = (y * w + x) * 4;
+      r += data.getUint8(i);
+      g += data.getUint8(i + 1);
+      b += data.getUint8(i + 2);
+      n++;
+    }
+
+    // First and last solid pixel of every other row, a little inside.
+    for (var y = 0; y < h; y += 2) {
+      var left = 0;
+      while (left < w && !solid(left, y)) {
+        left++;
+      }
+      if (left == w) continue;
+      var right = w - 1;
+      while (!solid(right, y)) {
+        right--;
+      }
+      add(math.min(left + 2, right), y);
+      add(math.max(right - 2, left), y);
+      minX = math.min(minX, left);
+      maxX = math.max(maxX, right);
+      minY = math.min(minY, y);
+      maxY = math.max(maxY, y);
+    }
+    if (n == 0) return null;
+    final edge = Color.fromARGB(255, r ~/ n, g ~/ n, b ~/ n);
+    // The photo is shown with BoxFit.contain in a square.
+    final m = math.max(w, h).toDouble();
+    final dx = (m - w) / 2, dy = (m - h) / 2;
+    return _packSides[url] = (
+      color: Color.lerp(edge, Colors.black, 0.25)!,
+      bounds: Rect.fromLTRB(
+        (dx + minX) / m,
+        (dy + minY) / m,
+        (dx + maxX + 1) / m,
+        (dy + maxY + 1) / m,
+      ),
+    );
+  } catch (_) {
+    return null;
+  } finally {
+    info.dispose();
+  }
+}
+
+/// "Live 360°" product picture: turns slowly like on a turntable. It is
+/// built from thin layers of the picture stacked behind each other, so it
+/// has real thickness from the side instead of being paper-thin. The inner
+/// layers and a side wall are one solid colour (from the photo's edges) and
+/// form the sides of the pack. The front gets darker as it turns away from
+/// the light, and the floor shadow narrows.
+/// With [interactive], drag sideways to turn it yourself (it starts turning
+/// again after a moment).
 class Product360 extends StatefulWidget {
   const Product360({
     super.key,
@@ -162,6 +264,7 @@ class Product360 extends StatefulWidget {
     this.radius = 12,
     this.interactive = false,
     this.secondsPerTurn = 8,
+    this.thickness = 0.16,
   });
 
   final Product product;
@@ -169,6 +272,9 @@ class Product360 extends StatefulWidget {
   final double radius;
   final bool interactive;
   final int secondsPerTurn;
+
+  /// Depth of the pack as a fraction of [size].
+  final double thickness;
 
   @override
   State<Product360> createState() => _Product360State();
@@ -185,6 +291,31 @@ class _Product360State extends State<Product360>
   )..repeat();
   double _drag = 0; // extra turns from the student's finger
   Timer? _resume;
+  _PackSide? _photoSide; // see [_photoPackSide]
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhotoSide();
+  }
+
+  @override
+  void didUpdateWidget(Product360 oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.product.imageUrl != widget.product.imageUrl) {
+      _photoSide = null;
+      _loadPhotoSide();
+    }
+  }
+
+  Future<void> _loadPhotoSide() async {
+    final url = widget.product.imageUrl;
+    if (url == null) return;
+    final side = await _photoPackSide(url);
+    if (mounted && url == widget.product.imageUrl) {
+      setState(() => _photoSide = side);
+    }
+  }
 
   @override
   void dispose() {
@@ -193,32 +324,118 @@ class _Product360State extends State<Product360>
     super.dispose();
   }
 
+  /// Side colour and outline: from the photo, or the emoji tile's.
+  _PackSide? _packSide(BuildContext context) {
+    if (widget.product.imageUrl != null) return _photoSide;
+    return (
+      color: Color.lerp(
+        _tileColors(context, widget.product).first,
+        Colors.black,
+        0.22,
+      )!,
+      bounds: const Rect.fromLTRB(0, 0, 1, 1),
+    );
+  }
+
+  /// One inner layer: the outline of the picture filled with one solid
+  /// colour, so together the layers look like the plain side of a pack.
+  Widget _layer(Color? color) {
+    final size = widget.size;
+    final radius = BorderRadius.circular(widget.radius);
+    final tile = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, borderRadius: radius),
+    );
+    final url = widget.product.imageUrl;
+    if (url == null) return tile;
+    return ClipRRect(
+      borderRadius: radius,
+      child: CachedNetworkImage(
+        imageUrl: url,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        // Paints the colour only where the picture is (its outline).
+        color: color ?? Colors.black.withValues(alpha: 0.3),
+        colorBlendMode: BlendMode.srcIn,
+        placeholder: (_, _) => tile,
+        errorWidget: (_, _, _) => tile,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final size = widget.size;
+    final depth = size * widget.thickness;
+    // About one layer every 1.5 px, so the side looks solid.
+    final layers = (depth / 1.5).round().clamp(6, 16);
+    final packSide = _packSide(context);
+    final face = ProductImage(
+      product: widget.product,
+      size: size,
+      radius: widget.radius,
+    );
+    final layer = _layer(packSide?.color);
+
+    Matrix4 turned(double angle) => Matrix4.identity()
+      ..setEntry(3, 2, 0.0012)
+      ..rotateY(angle);
+
     final picture = AnimatedBuilder(
       animation: _spin,
-      builder: (context, child) {
+      builder: (context, _) {
         final angle = 2 * math.pi * (_spin.value + _drag);
         final facing = math.cos(angle);
-        final transform = Matrix4.identity()
-          ..setEntry(3, 2, 0.0012)
-          ..rotateY(angle);
-        // Show the front on both sides instead of a mirrored back.
-        if (facing < 0) transform.multiply(Matrix4.diagonal3Values(-1, 1, 1));
+        final front = facing >= 0;
+        // Layer 0 is the front, the last one the back. Positive z is away
+        // from the viewer, so paint the farthest layer first and the face
+        // nearest to the viewer last.
+        final order = front
+            ? [for (var i = layers - 1; i >= 0; i--) i]
+            : [for (var i = 0; i < layers; i++) i];
+        Widget at(int i, Widget child) => Transform(
+          key: ValueKey(i),
+          alignment: Alignment.center,
+          transform: turned(angle)
+            ..translateByDouble(0, 0, -depth / 2 + depth * i / (layers - 1), 1)
+            // From behind, flip so the picture is not mirrored.
+            ..scaleByDouble(front ? 1 : -1, 1, 1, 1),
+          child: child,
+        );
+
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Transform(
-              alignment: Alignment.center,
-              transform: transform,
-              child: child,
+            SizedBox.square(
+              dimension: size,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  for (final i in order.take(layers - 1)) at(i, layer),
+                  if (packSide != null) _wall(angle, front, depth, packSide),
+                  at(
+                    order.last,
+                    ColorFiltered(
+                      colorFilter: ColorFilter.mode(
+                        Colors.black.withValues(
+                          alpha: 0.3 * (1 - facing.abs()),
+                        ),
+                        BlendMode.srcATop,
+                      ),
+                      child: face,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            SizedBox(height: widget.size * 0.07),
+            SizedBox(height: size * 0.07),
             Container(
-              width: widget.size * 0.7 * (0.3 + 0.7 * facing.abs()),
-              height: widget.size * 0.07,
+              width: size * 0.7 * (0.3 + 0.7 * facing.abs()),
+              height: size * 0.07,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(widget.size),
+                borderRadius: BorderRadius.circular(size),
                 color: Colors.black.withValues(
                   alpha: context.isDark ? 0.45 : 0.14,
                 ),
@@ -227,11 +444,6 @@ class _Product360State extends State<Product360>
           ],
         );
       },
-      child: ProductImage(
-        product: widget.product,
-        size: widget.size,
-        radius: widget.radius,
-      ),
     );
     if (!widget.interactive) return picture;
     return GestureDetector(
@@ -246,6 +458,37 @@ class _Product360State extends State<Product360>
         () => mounted ? _spin.repeat() : null,
       ),
       child: picture,
+    );
+  }
+
+  /// A solid panel along the visible edge of the pack, as deep as the pack.
+  /// Seen exactly side-on the layers are only hairlines; this fills the
+  /// gaps between them.
+  Widget _wall(double angle, bool front, double depth, _PackSide side) {
+    final size = widget.size;
+    final b = side.bounds;
+    // The right edge faces the viewer while sin(angle) > 0. From behind
+    // the layers are flipped, so the picture's other edge is there.
+    final rightVisible = math.sin(angle) > 0;
+    final edge = (rightVisible == front ? b.right : b.left) * size - size / 2;
+    return Transform(
+      key: const ValueKey('wall'),
+      alignment: Alignment.center,
+      transform: Matrix4.identity()
+        ..setEntry(3, 2, 0.0012)
+        ..rotateY(angle)
+        ..translateByDouble(
+          front ? edge : -edge,
+          (b.center.dy - 0.5) * size,
+          0,
+          1,
+        )
+        ..rotateY(math.pi / 2),
+      child: Container(
+        width: depth,
+        height: b.height * size,
+        color: side.color,
+      ),
     );
   }
 }

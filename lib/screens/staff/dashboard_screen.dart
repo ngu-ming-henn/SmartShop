@@ -246,13 +246,13 @@ class _EmptyShopCardState extends State<_EmptyShopCard> {
   Future<void> _load() async {
     setState(() => _busy = true);
     try {
-      final added = await context.read<ProductService>().seedSampleProducts(
+      final result = await context.read<ProductService>().seedSampleProducts(
         context.read<AuthProvider>().user!.uid,
       );
       if (mounted) {
         showSnack(
           context,
-          context.tr('Added {count} products.', {'count': added}),
+          context.tr('Added {count} products.', {'count': result.added}),
         );
       }
     } catch (e) {

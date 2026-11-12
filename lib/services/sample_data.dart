@@ -7,6 +7,10 @@ import '../models/product.dart';
 /// Barcodes use the GS1 "200" prefix, which is reserved for in-store use,
 /// so they never clash with real products. Scan a real item and add it from
 /// the Products screen to use real barcodes.
+///
+/// Each `about` text also has a Malay entry in malay.dart, so the demo
+/// descriptions follow the app language. Descriptions typed by staff are
+/// shown as written.
 List<Product> buildSampleProducts(DateTime now) {
   DateTime inDays(int d) => DateTime(now.year, now.month, now.day + d);
   var n = 0;
@@ -17,6 +21,7 @@ List<Product> buildSampleProducts(DateTime now) {
     String category,
     int priceSen,
     int stock, {
+    required String about,
     int threshold = 5,
     int? expiresInDays,
     String? barcode,
@@ -30,11 +35,22 @@ List<Product> buildSampleProducts(DateTime now) {
     soldCount: sold,
     lowStockThreshold: threshold,
     expiryDate: expiresInDays == null ? null : inDays(expiresInDays),
+    description: about,
   );
 
   return [
     // Drinks
-    p('Milo Can 400g', 'Drinks', 1850, 25, expiresInDays: 300, sold: 40),
+    p(
+      'Milo Can 400g',
+      'Drinks',
+      1850,
+      25,
+      expiresInDays: 300,
+      sold: 40,
+      about:
+          'Chocolate malt drink powder. Mix 3 spoons with hot or cold water, '
+          'or milk.',
+    ),
     p(
       'Mineral Water 500ml',
       'Drinks',
@@ -43,6 +59,9 @@ List<Product> buildSampleProducts(DateTime now) {
       threshold: 12,
       expiresInDays: 365,
       sold: 320,
+      about:
+          'Natural mineral water in a handy bottle. Refill the bottle to cut '
+          'plastic waste.',
     ),
     p(
       '100Plus Isotonic 500ml',
@@ -52,9 +71,29 @@ List<Product> buildSampleProducts(DateTime now) {
       threshold: 8,
       expiresInDays: 200,
       sold: 150,
+      about:
+          'Isotonic drink that replaces fluids and minerals after sports or a '
+          'long day.',
     ),
-    p('Teh Tarik 3-in-1 (10 sachets)', 'Drinks', 1290, 12, expiresInDays: 240),
-    p('Fresh Milk 1L', 'Drinks', 790, 8, expiresInDays: 3, sold: 60),
+    p(
+      'Teh Tarik 3-in-1 (10 sachets)',
+      'Drinks',
+      1290,
+      12,
+      expiresInDays: 240,
+      about: 'Instant milk tea with sugar and creamer. Just add hot water.',
+    ),
+    p(
+      'Fresh Milk 1L',
+      'Drinks',
+      790,
+      8,
+      expiresInDays: 3,
+      sold: 60,
+      about:
+          'Fresh full cream milk. Keep chilled and finish within 3 days of '
+          'opening.',
+    ),
     p(
       'Milo Ais (cup)',
       'Drinks',
@@ -64,9 +103,18 @@ List<Product> buildSampleProducts(DateTime now) {
       expiresInDays: 0,
       barcode: 'SK-000004',
       sold: 410,
+      about: 'Iced Milo made fresh at the koperasi counter.',
     ),
     // Food (short shelf life: good for Save Food)
-    p('White Bread Loaf', 'Food', 390, 10, expiresInDays: 2, sold: 90),
+    p(
+      'White Bread Loaf',
+      'Food',
+      390,
+      10,
+      expiresInDays: 2,
+      sold: 90,
+      about: 'Soft white sandwich bread, great for toast or a quick breakfast.',
+    ),
     p(
       'Kuih Lapis',
       'Food',
@@ -76,6 +124,7 @@ List<Product> buildSampleProducts(DateTime now) {
       expiresInDays: 1,
       barcode: 'SK-000001',
       sold: 260,
+      about: 'Colourful steamed layer cake, made fresh every morning.',
     ),
     p(
       'Curry Puff',
@@ -86,10 +135,39 @@ List<Product> buildSampleProducts(DateTime now) {
       expiresInDays: 1,
       barcode: 'SK-000002',
       sold: 300,
+      about: 'Crispy pastry filled with spicy potato curry.',
     ),
-    p('Nasi Lemak Bungkus', 'Food', 350, 12, expiresInDays: 0, sold: 450),
-    p('Tuna Sandwich', 'Food', 450, 8, expiresInDays: 2, sold: 120),
-    p('Strawberry Yogurt Cup', 'Food', 250, 9, expiresInDays: 3, sold: 70),
+    p(
+      'Nasi Lemak Bungkus',
+      'Food',
+      350,
+      12,
+      expiresInDays: 0,
+      sold: 450,
+      about:
+          'Coconut rice with sambal, egg, peanuts and anchovies, wrapped to '
+          'go.',
+    ),
+    p(
+      'Tuna Sandwich',
+      'Food',
+      450,
+      8,
+      expiresInDays: 2,
+      sold: 120,
+      about: 'Tuna mayo with lettuce in soft bread. Keep chilled.',
+    ),
+    p(
+      'Strawberry Yogurt Cup',
+      'Food',
+      250,
+      9,
+      expiresInDays: 3,
+      sold: 70,
+      about:
+          'Creamy strawberry yogurt, a light snack between classes. Keep '
+          'chilled.',
+    ),
     // Snacks
     p(
       'Instant Noodle Snack',
@@ -99,18 +177,89 @@ List<Product> buildSampleProducts(DateTime now) {
       threshold: 10,
       expiresInDays: 150,
       sold: 200,
+      about: 'Crunchy noodle snack you can eat straight from the pack.',
     ),
-    p('Potato Chips 60g', 'Snacks', 220, 18, expiresInDays: 120, sold: 180),
-    p('Chocolate Bar', 'Snacks', 350, 4, expiresInDays: 180, sold: 110),
-    p('Cream Crackers', 'Snacks', 420, 14, expiresInDays: 210, sold: 50),
-    p('Chocolate Muffin', 'Snacks', 250, 6, expiresInDays: 1, sold: 80),
+    p(
+      'Potato Chips 60g',
+      'Snacks',
+      220,
+      18,
+      expiresInDays: 120,
+      sold: 180,
+      about: 'Thin, crispy salted potato chips.',
+    ),
+    p(
+      'Chocolate Bar',
+      'Snacks',
+      350,
+      4,
+      expiresInDays: 180,
+      sold: 110,
+      about: 'Milk chocolate bar for a quick energy boost.',
+    ),
+    p(
+      'Cream Crackers',
+      'Snacks',
+      420,
+      14,
+      expiresInDays: 210,
+      sold: 50,
+      about: 'Plain, crispy crackers. Good with coffee, kaya or peanut butter.',
+    ),
+    p(
+      'Chocolate Muffin',
+      'Snacks',
+      250,
+      6,
+      expiresInDays: 1,
+      sold: 80,
+      about: 'Soft chocolate muffin baked fresh. Best eaten today.',
+    ),
     // Stationery (no expiry)
-    p('A4 Paper 80gsm (500 sheets)', 'Stationery', 1290, 10, threshold: 3),
-    p('Blue Ballpoint Pen', 'Stationery', 150, 50, threshold: 10),
-    p('Exam Pad', 'Stationery', 300, 3),
-    p('Highlighter', 'Stationery', 250, 20),
-    p('Correction Tape', 'Stationery', 380, 0),
-    p('A5 Notebook', 'Stationery', 450, 15),
+    p(
+      'A4 Paper 80gsm (500 sheets)',
+      'Stationery',
+      1290,
+      10,
+      threshold: 3,
+      about: '500 sheets of white A4 paper for printing and assignments.',
+    ),
+    p(
+      'Blue Ballpoint Pen',
+      'Stationery',
+      150,
+      50,
+      threshold: 10,
+      about: 'Smooth 0.7 mm blue ballpoint pen.',
+    ),
+    p(
+      'Exam Pad',
+      'Stationery',
+      300,
+      3,
+      about: 'Lined exam pad for tests and exams.',
+    ),
+    p(
+      'Highlighter',
+      'Stationery',
+      250,
+      20,
+      about: 'Bright yellow highlighter for marking your notes.',
+    ),
+    p(
+      'Correction Tape',
+      'Stationery',
+      380,
+      0,
+      about: 'Neat correction tape, no waiting for it to dry.',
+    ),
+    p(
+      'A5 Notebook',
+      'Stationery',
+      450,
+      15,
+      about: 'A5 lined notebook, 80 pages.',
+    ),
     p(
       'Pencil (loose)',
       'Stationery',
@@ -118,14 +267,50 @@ List<Product> buildSampleProducts(DateTime now) {
       40,
       threshold: 10,
       barcode: 'SK-000003',
+      about: '2B pencil, good for exams and drawing.',
     ),
     // Others (daily items)
-    p('Pocket Tissue', 'Others', 150, 30, threshold: 8),
-    p('Hand Sanitizer 50ml', 'Others', 590, 7, expiresInDays: 500),
-    p('Face Mask (10 pcs)', 'Others', 890, 6),
-    p('Foldable Umbrella', 'Others', 1500, 2, threshold: 2),
+    p(
+      'Pocket Tissue',
+      'Others',
+      150,
+      30,
+      threshold: 8,
+      about: 'Soft facial tissue in a pack that fits in your pocket.',
+    ),
+    p(
+      'Hand Sanitizer 50ml',
+      'Others',
+      590,
+      7,
+      expiresInDays: 500,
+      about: '70% alcohol hand sanitizer gel in a small bottle.',
+    ),
+    p(
+      'Face Mask (10 pcs)',
+      'Others',
+      890,
+      6,
+      about: '3-ply disposable face masks, 10 pieces.',
+    ),
+    p(
+      'Foldable Umbrella',
+      'Others',
+      1500,
+      2,
+      threshold: 2,
+      about: 'Compact foldable umbrella for sudden rain on campus.',
+    ),
     // More items (added at the end so the codes above stay the same)
-    p('Gardenia Classic Bread', 'Food', 450, 12, expiresInDays: 4, sold: 230),
+    p(
+      'Gardenia Classic Bread',
+      'Food',
+      450,
+      12,
+      expiresInDays: 4,
+      sold: 230,
+      about: 'Classic soft white bread from Gardenia, a breakfast favourite.',
+    ),
     p(
       'Roti Kaya (bun)',
       'Food',
@@ -135,6 +320,7 @@ List<Product> buildSampleProducts(DateTime now) {
       expiresInDays: 1,
       barcode: 'SK-000005',
       sold: 210,
+      about: 'Soft bun filled with sweet kaya (coconut jam).',
     ),
     p(
       'Maggi Curry Cup Noodles',
@@ -143,9 +329,29 @@ List<Product> buildSampleProducts(DateTime now) {
       30,
       expiresInDays: 200,
       sold: 380,
+      about:
+          'Maggi curry noodles in a cup. Add hot water, wait 3 minutes and '
+          'enjoy.',
     ),
-    p('Indomie Mi Goreng', 'Food', 130, 45, threshold: 10, sold: 350),
-    p('Chicken Curry Puff', 'Food', 150, 0, expiresInDays: 1, sold: 190),
+    p(
+      'Indomie Mi Goreng',
+      'Food',
+      130,
+      45,
+      threshold: 10,
+      sold: 350,
+      about:
+          'Indonesian fried noodles with sweet soy sauce and fried shallots.',
+    ),
+    p(
+      'Chicken Curry Puff',
+      'Food',
+      150,
+      0,
+      expiresInDays: 1,
+      sold: 190,
+      about: 'Crispy pastry filled with chicken and potato curry.',
+    ),
     p(
       'Teh Ais (cup)',
       'Drinks',
@@ -155,9 +361,26 @@ List<Product> buildSampleProducts(DateTime now) {
       expiresInDays: 0,
       barcode: 'SK-000006',
       sold: 300,
+      about: 'Iced milk tea made fresh at the counter.',
     ),
-    p('Coca-Cola Can 320ml', 'Drinks', 250, 36, expiresInDays: 270, sold: 260),
-    p('Chocolate Milk 200ml', 'Drinks', 220, 18, expiresInDays: 10, sold: 140),
+    p(
+      'Coca-Cola Can 320ml',
+      'Drinks',
+      250,
+      36,
+      expiresInDays: 270,
+      sold: 260,
+      about: 'Classic Coca-Cola. Best served cold.',
+    ),
+    p(
+      'Chocolate Milk 200ml',
+      'Drinks',
+      220,
+      18,
+      expiresInDays: 10,
+      sold: 140,
+      about: 'Chocolate milk drink in a small pack with a straw.',
+    ),
     p(
       'Nescafe Latte Can 240ml',
       'Drinks',
@@ -165,15 +388,82 @@ List<Product> buildSampleProducts(DateTime now) {
       3,
       expiresInDays: 180,
       sold: 95,
+      about: 'Ready-to-drink latte coffee for early classes.',
     ),
-    p('Twisties Cheese 60g', 'Snacks', 220, 25, expiresInDays: 150, sold: 170),
-    p('Oreo Original 133g', 'Snacks', 450, 14, expiresInDays: 240, sold: 120),
-    p('Peanut Butter Biscuits', 'Snacks', 380, 10, expiresInDays: 200),
-    p('Sticky Notes (3 pads)', 'Stationery', 350, 20),
-    p('Scientific Calculator', 'Stationery', 4590, 4, threshold: 2, sold: 25),
-    p('Scented Candle (Vanilla)', 'Others', 890, 8, threshold: 3, sold: 30),
-    p('Tealight Candles (10 pcs)', 'Others', 590, 12, sold: 45),
-    p('AA Batteries (4 pcs)', 'Others', 1190, 9, sold: 40),
-    p('Toothpaste 100g', 'Others', 650, 11, expiresInDays: 600),
+    p(
+      'Twisties Cheese 60g',
+      'Snacks',
+      220,
+      25,
+      expiresInDays: 150,
+      sold: 170,
+      about: 'Crunchy corn snack with cheese flavour.',
+    ),
+    p(
+      'Oreo Original 133g',
+      'Snacks',
+      450,
+      14,
+      expiresInDays: 240,
+      sold: 120,
+      about: 'Chocolate cookies with vanilla cream filling.',
+    ),
+    p(
+      'Peanut Butter Biscuits',
+      'Snacks',
+      380,
+      10,
+      expiresInDays: 200,
+      about: 'Crunchy biscuits with peanut butter filling.',
+    ),
+    p(
+      'Sticky Notes (3 pads)',
+      'Stationery',
+      350,
+      20,
+      about: '3 pads of coloured sticky notes for reminders and bookmarks.',
+    ),
+    p(
+      'Scientific Calculator',
+      'Stationery',
+      4590,
+      4,
+      threshold: 2,
+      sold: 25,
+      about: 'Scientific calculator for maths, engineering and statistics.',
+    ),
+    p(
+      'Scented Candle (Vanilla)',
+      'Others',
+      890,
+      8,
+      threshold: 3,
+      sold: 30,
+      about: 'Vanilla scented candle to make your room calm and cosy.',
+    ),
+    p(
+      'Tealight Candles (10 pcs)',
+      'Others',
+      590,
+      12,
+      sold: 45,
+      about: 'Small unscented tealight candles, about 4 hours each.',
+    ),
+    p(
+      'AA Batteries (4 pcs)',
+      'Others',
+      1190,
+      9,
+      sold: 40,
+      about: 'Alkaline AA batteries for calculators, mice and remotes.',
+    ),
+    p(
+      'Toothpaste 100g',
+      'Others',
+      650,
+      11,
+      expiresInDays: 600,
+      about: 'Fluoride toothpaste for fresh breath and strong teeth.',
+    ),
   ];
 }

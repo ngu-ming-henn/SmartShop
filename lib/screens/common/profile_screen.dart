@@ -14,6 +14,7 @@ import '../../widgets/brand.dart';
 import '../../widgets/common.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/preferences_card.dart';
+import '../../widgets/user_avatar.dart';
 
 /// Profile for students and staff: details, member QR, account settings
 /// (edit profile, change password), language and light / dark mode.
@@ -44,7 +45,7 @@ class ProfileScreen extends StatelessWidget {
           _Tile(
             icon: Icons.person_outline,
             title: context.tr('Edit profile'),
-            subtitle: context.tr('Name, ID and phone number'),
+            subtitle: context.tr('Photo, name, ID and phone number'),
             onTap: () => context.push('/account/edit'),
           ),
           _Tile(
@@ -140,14 +141,6 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final top = MediaQuery.paddingOf(context).top;
-    final initials = user.name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .take(2)
-        .map((w) => w[0].toUpperCase())
-        .join();
-
     return Container(
       decoration: const BoxDecoration(
         gradient: AppColors.brandGradient,
@@ -179,21 +172,43 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           FadeSlideIn(
-            child: Container(
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: CircleAvatar(
-                radius: 42,
-                backgroundColor: Colors.white.withValues(alpha: 0.2),
-                child: Text(
-                  initials.isEmpty ? '?' : initials,
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
+            child: Pressable(
+              child: GestureDetector(
+                onTap: () => changeProfilePhoto(context),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: UserAvatar(
+                        name: user.name,
+                        photo: user.photo,
+                        radius: 42,
+                        background: Colors.white.withValues(alpha: 0.2),
+                        foreground: Colors.white,
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.photo_camera,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

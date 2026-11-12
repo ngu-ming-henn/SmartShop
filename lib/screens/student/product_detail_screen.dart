@@ -143,6 +143,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           alignment: Alignment.centerLeft,
           child: StockBadge(product: product),
         ),
+        if (product.description != null) ...[
+          const SizedBox(height: 16),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 20, color: context.brand),
+                      const SizedBox(width: 8),
+                      Text(
+                        context.tr('About this product'),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    // Sample descriptions have a Malay entry; text typed
+                    // by staff has none and is shown as written.
+                    context.tr(product.description!),
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         if (product.isOnSaveFood) ...[
           const SizedBox(height: 16),
           Container(

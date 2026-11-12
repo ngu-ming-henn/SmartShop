@@ -9,6 +9,7 @@ import '../../services/product_service.dart';
 import '../../services/sample_data.dart';
 import '../../widgets/common.dart';
 import '../../widgets/preferences_card.dart';
+import '../../widgets/user_avatar.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
@@ -19,7 +20,8 @@ class MoreScreen extends StatelessWidget {
       title: context.tr('Load sample products?'),
       message: context.tr(
         'Adds {count} demo products (food, drinks, snacks, stationery...) '
-        'with stock and expiry dates. Existing products are not changed.',
+        'with stock, expiry dates and descriptions. Existing products keep '
+        'their stock and prices.',
         {'count': buildSampleProducts(DateTime.now()).length},
       ),
       confirmLabel: context.tr('Load'),
@@ -27,15 +29,19 @@ class MoreScreen extends StatelessWidget {
     );
     if (!ok || !context.mounted) return;
     try {
-      final added = await context.read<ProductService>().seedSampleProducts(
+      final result = await context.read<ProductService>().seedSampleProducts(
         context.read<AuthProvider>().user!.uid,
       );
       if (context.mounted) {
         showSnack(
           context,
-          added == 0
-              ? context.tr('Sample products already loaded.')
-              : context.tr('Added {count} products.', {'count': added}),
+          result.added > 0
+              ? context.tr('Added {count} products.', {'count': result.added})
+              : result.described > 0
+              ? context.tr('Added descriptions to {count} products.', {
+                  'count': result.described,
+                })
+              : context.tr('Sample products already loaded.'),
         );
       }
     } catch (e) {
@@ -77,10 +83,7 @@ class MoreScreen extends StatelessWidget {
         children: [
           Card(
             child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: context.colors.secondaryContainer,
-                child: Icon(Icons.badge, color: context.brand),
-              ),
+              leading: UserAvatar(name: user?.name ?? '', photo: user?.photo),
               title: Text(user?.name ?? ''),
               subtitle: Text(
                 '${user?.email ?? ''} · ${context.tr('Koperasi staff')}',

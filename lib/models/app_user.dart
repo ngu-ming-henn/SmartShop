@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/constants.dart';
@@ -13,6 +15,7 @@ class AppUser {
     required this.role,
     required this.greenPoints,
     this.phone = '',
+    this.photo,
     this.createdAt,
   });
 
@@ -23,6 +26,7 @@ class AppUser {
   final String role; // 'student' or 'staff'
   final int greenPoints;
   final String phone; // optional, e.g. "012-345 6789"
+  final Uint8List? photo; // small JPEG, saved in the profile document
   final DateTime? createdAt;
 
   bool get isStaff => role == UserRoles.staff;
@@ -40,6 +44,7 @@ class AppUser {
       role: d['role'] as String? ?? UserRoles.student,
       greenPoints: readInt(d['greenPoints']),
       phone: d['phone'] as String? ?? '',
+      photo: (d['photo'] as Blob?)?.bytes,
       createdAt: readDate(d['createdAt']),
     );
   }

@@ -10,6 +10,7 @@ import 'package:smartshop/screens/student/budget_planner_screen.dart';
 import 'package:smartshop/widgets/deal_widgets.dart';
 import 'package:smartshop/widgets/password_strength.dart';
 import 'package:smartshop/widgets/product_widgets.dart';
+import 'package:smartshop/widgets/user_avatar.dart';
 
 Product item(String name, String category, int priceSen, {int? deal}) =>
     Product(
@@ -145,9 +146,24 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     await tester.drag(find.byType(Product360), const Offset(160, 0));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('🥤'), findsOneWidget);
+    expect(find.text('🥤'), findsOneWidget); // only the front face
+    // Thin layers stacked in depth give it thickness from the side.
+    final layers = find.descendant(
+      of: find.byType(Product360),
+      matching: find.byType(Transform),
+    );
+    expect(layers.evaluate().length, greaterThanOrEqualTo(6));
     expect(tester.takeException(), isNull);
     await tester.pump(const Duration(seconds: 3)); // starts turning again
+  });
+
+  testWidgets('profile avatar shows initials without a photo', (tester) async {
+    expect(initialsOf('Ngu Ming Henn'), 'NM');
+    expect(initialsOf('  '), '?');
+    await tester.pumpWidget(
+      app(const Scaffold(body: UserAvatar(name: 'Test1', photo: null))),
+    );
+    expect(find.text('T'), findsOneWidget);
   });
 
   testWidgets('password strength line in dark mode', (tester) async {

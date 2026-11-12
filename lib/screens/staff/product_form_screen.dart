@@ -31,6 +31,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   final _form = GlobalKey<FormState>();
   final _code = TextEditingController();
   final _name = TextEditingController();
+  final _description = TextEditingController();
   final _price = TextEditingController();
   final _saveFoodPrice = TextEditingController();
   final _threshold = TextEditingController(
@@ -68,6 +69,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     for (final c in [
       _code,
       _name,
+      _description,
       _price,
       _saveFoodPrice,
       _threshold,
@@ -95,6 +97,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       _original = p;
       _code.text = p.barcode;
       _name.text = p.name;
+      _description.text = p.description ?? '';
       _price.text = senToInput(p.priceSen);
       _saveFoodPrice.text = p.saveFoodPriceSen == null
           ? ''
@@ -197,6 +200,9 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       lowStockThreshold: int.parse(_threshold.text),
       expiryDate: _expiryDate,
       imageUrl: _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim(),
+      description: _description.text.trim().isEmpty
+          ? null
+          : _description.text.trim(),
       isActive: _isActive,
     );
 
@@ -294,6 +300,19 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                     validator: (v) => (v?.trim().isEmpty ?? true)
                         ? context.tr('Enter a name')
                         : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _description,
+                    textCapitalization: TextCapitalization.sentences,
+                    minLines: 2,
+                    maxLines: 5,
+                    maxLength: 300,
+                    decoration: InputDecoration(
+                      labelText: context.tr('Description (optional)'),
+                      hintText: context.tr('e.g. flavour, size, how to use it'),
+                      alignLabelWithHint: true,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(

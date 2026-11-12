@@ -19,6 +19,7 @@ class Product {
     this.soldCount = 0,
     this.expiryDate,
     this.imageUrl,
+    this.description,
     this.isActive = true,
     this.updatedAt,
   });
@@ -33,6 +34,7 @@ class Product {
   final int lowStockThreshold;
   final DateTime? expiryDate; // nearest expiry date
   final String? imageUrl;
+  final String? description; // "About this product" on the product page
   final bool isActive;
   final DateTime? updatedAt;
 
@@ -79,6 +81,7 @@ class Product {
   factory Product.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data()!;
     final imageUrl = (d['imageUrl'] as String?)?.trim();
+    final description = (d['description'] as String?)?.trim();
     return Product(
       barcode: doc.id,
       name: d['name'] as String? ?? doc.id,
@@ -93,6 +96,9 @@ class Product {
       ),
       expiryDate: readDate(d['expiryDate']),
       imageUrl: imageUrl == null || imageUrl.isEmpty ? null : imageUrl,
+      description: description == null || description.isEmpty
+          ? null
+          : description,
       isActive: d['isActive'] as bool? ?? true,
       updatedAt: readDate(d['updatedAt']),
     );
@@ -109,6 +115,7 @@ class Product {
     'lowStockThreshold': lowStockThreshold,
     'expiryDate': toTimestamp(expiryDate),
     'imageUrl': imageUrl,
+    'description': description,
     'isActive': isActive,
     'updatedAt': FieldValue.serverTimestamp(),
   };

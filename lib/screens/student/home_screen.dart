@@ -117,10 +117,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: _BudgetPlannerCard(),
             ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: _FindShopCard(),
-            ),
+            const _FindShopCard(),
             if (deals.isNotEmpty) ...[
               SectionHeader(
                 title: '🍞 ${context.tr('Save Food deals')}',
@@ -283,33 +280,86 @@ class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
   );
 }
 
-/// Where the koperasi is, with Open / Closed, opens the map.
+/// Closed with ✕ until the app is opened again (not saved on purpose).
+final _shopCardHidden = ValueNotifier(false);
+
+/// Where the koperasi is: green when open, red when closed. Tap for the map.
 class _FindShopCard extends StatelessWidget {
   const _FindShopCard();
 
+  void _hide(BuildContext context) {
+    _shopCardHidden.value = true;
+    showSnack(
+      context,
+      context.tr(
+        'Hidden until you open the app again. The map is also in Profile.',
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: _shopCardHidden,
+      builder: (context, hidden, _) => AnimatedSize(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        child: hidden ? const SizedBox(width: double.infinity) : _card(context),
+      ),
+    );
+  }
+
+  Widget _card(BuildContext context) {
     final open = ShopLocation.isOpen(DateTime.now());
-    final closing = formatTime(DateTime(2000, 1, 1, AppRules.closingHour));
-    return Pressable(
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: ListTile(
-          onTap: () => context.push('/shop'),
-          leading: CircleAvatar(
-            backgroundColor: context.colors.secondaryContainer,
-            child: Icon(Icons.location_on, color: context.brand),
+    final color = open ? context.eco : AppColors.error;
+    String time(int hour) => formatTime(DateTime(2000, 1, 1, hour));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Pressable(
+        child: Card(
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
+            onTap: () => context.push('/shop'),
+            contentPadding: const EdgeInsetsDirectional.only(start: 16, end: 4),
+            leading: CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.14),
+              child: Icon(Icons.storefront, color: color),
+            ),
+            title: Text(
+              context.tr('Find the koperasi'),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    open
+                        ? context.tr('Open now · until {time}', {
+                            'time': time(AppRules.closingHour),
+                          })
+                        : context.tr('Closed now · opens {time}', {
+                            'time': time(AppRules.openingHour),
+                          }),
+                    style: TextStyle(color: color, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            trailing: IconButton(
+              tooltip: context.tr('Hide'),
+              icon: Icon(Icons.close, color: context.colors.outline),
+              onPressed: () => _hide(context),
+            ),
           ),
-          title: Text(
-            context.tr('Find the koperasi'),
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          subtitle: Text(
-            open
-                ? context.tr('Open now · until {time}', {'time': closing})
-                : context.tr('Closed now'),
-          ),
-          trailing: const Icon(Icons.map_outlined),
         ),
       ),
     );

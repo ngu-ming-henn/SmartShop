@@ -143,6 +143,9 @@ class AuthProvider extends ChangeNotifier {
     phone: phone,
   );
 
+  Future<void> updatePhoto(Uint8List? jpeg) =>
+      _service.updatePhoto(_user!.uid, jpeg);
+
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
