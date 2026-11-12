@@ -5,6 +5,11 @@
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <!-- Order ready, Save Food and low-stock alerts (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- "Find the koperasi": your position, distance and the nearest car
+         park (only while the map is open) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-feature android:name="android.hardware.location.gps" android:required="false"/>
     <application
         android:label="SmartShop"
         android:name="${applicationName}"

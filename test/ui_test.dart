@@ -120,9 +120,7 @@ void main() {
     });
 
     testWidgets('shows Malay text', (tester) async {
-      await tester.pumpWidget(
-        app(const BudgetPlannerScreen(), language: 'ms'),
-      );
+      await tester.pumpWidget(app(const BudgetPlannerScreen(), language: 'ms'));
       await tester.pump(const Duration(seconds: 1));
       expect(find.text('Apa yang anda perlukan?'), findsOneWidget);
       expect(find.text('Cadangkan untuk saya'), findsOneWidget);

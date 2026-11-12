@@ -56,6 +56,31 @@ class ShopLocation {
       now.hour >= AppRules.openingHour && now.hour < AppRules.closingHour;
 }
 
+enum ParkingKind { car, motorcycle }
+
+/// A car or motorcycle park near the koperasi, for the "nearest parking"
+/// finder on the map. Shown as "Car park 1", "Motorcycle park 2"...
+class ParkingSpot {
+  const ParkingSpot(this.kind, this.number, this.latitude, this.longitude);
+  final ParkingKind kind;
+  final int number;
+  final double latitude;
+  final double longitude;
+}
+
+/// Car parks on campus (within 400 m) and the nearest motorcycle parks,
+/// from OpenStreetMap (© OpenStreetMap contributors, November 2026).
+const parkingSpots = <ParkingSpot>[
+  ParkingSpot(ParkingKind.car, 1, 2.340234, 111.845762),
+  ParkingSpot(ParkingKind.car, 2, 2.339774, 111.845600),
+  ParkingSpot(ParkingKind.car, 3, 2.340242, 111.844084),
+  ParkingSpot(ParkingKind.car, 4, 2.340650, 111.843598),
+  ParkingSpot(ParkingKind.car, 5, 2.341223, 111.842857),
+  ParkingSpot(ParkingKind.motorcycle, 1, 2.336221, 111.846354),
+  ParkingSpot(ParkingKind.motorcycle, 2, 2.336340, 111.844869),
+  ParkingSpot(ParkingKind.motorcycle, 3, 2.341330, 111.839615),
+];
+
 /// Product categories shown as chips on the student home screen.
 /// The AI Budget Planner builds combos from the first three.
 const productCategories = <String>[

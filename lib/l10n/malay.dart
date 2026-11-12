@@ -171,6 +171,7 @@ const malayStrings = <String, String>{
   'Built for UTS Koperasi, University of Technology Sarawak':
       'Dibina untuk Koperasi UTS, University of Technology Sarawak',
   'Could not open Google Maps.': 'Tidak dapat membuka Google Maps.',
+  'Show me': 'Tunjuk lokasi saya',
   'Back to the koperasi': 'Kembali ke koperasi',
   'Open now': 'Dibuka sekarang',
   'Closed': 'Ditutup',
@@ -179,6 +180,26 @@ const malayStrings = <String, String>{
       'Tingkat bawah, di bawah tangga. Tunjukkan QR ambilan anda di kaunter.',
   'Directions': 'Arah',
   'Street View': 'Street View',
+  'Finding your location…': 'Mencari lokasi anda…',
+  '{distance} away · about {minutes} min walk':
+      '{distance} lagi · kira-kira {minutes} minit berjalan kaki',
+  'Allow location to see how far you are.':
+      'Benarkan lokasi untuk melihat jarak anda.',
+  'Allow': 'Benarkan',
+  'Location is blocked for SmartShop.': 'Lokasi disekat untuk SmartShop.',
+  'Open settings': 'Buka tetapan',
+  'Location is off.': 'Lokasi dimatikan.',
+  'Turn on': 'Hidupkan',
+  'Nearest parking': 'Tempat letak kenderaan terdekat',
+  'Car': 'Kereta',
+  'Motorcycle': 'Motosikal',
+  'Measured from you. Parking from OpenStreetMap.':
+      'Diukur dari lokasi anda. Data parkir dari OpenStreetMap.',
+  'Measured from the koperasi until your location is found.':
+      'Diukur dari koperasi sehingga lokasi anda dijumpai.',
+  'Car park {n}': 'Parkir kereta {n}',
+  'Motorcycle park {n}': 'Parkir motosikal {n}',
+  'Nearest': 'Terdekat',
   'Save Food price': 'Harga Save Food',
   '{name}\nNormal price {price}': '{name}\nHarga biasa {price}',
   'Deal price': 'Harga tawaran',

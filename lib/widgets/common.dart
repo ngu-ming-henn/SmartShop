@@ -7,7 +7,15 @@ import 'motion.dart';
 void showSnack(BuildContext context, String message, {SnackBarAction? action}) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message), action: action));
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: action,
+        // Flutter keeps a snack bar with an action until it is tapped; these
+        // are only confirmations ("View cart"), so they go after 4 s too.
+        persist: false,
+      ),
+    );
 }
 
 void showError(BuildContext context, Object error) =>
