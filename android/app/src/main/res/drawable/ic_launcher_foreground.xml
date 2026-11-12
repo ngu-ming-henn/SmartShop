@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SmartShop logo: shopping bag with a "ready" tick and a gold spark.
+     Same drawing as SmartShopLogo in lib/widgets/brand.dart. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,45 H68 Q71,45 71.3,48 L73.7,73 Q74,77 70,77 H38 Q34,77 34.3,73 L36.7,48 Q37,45 40,45 Z" />
+    <path
+        android:pathData="M46,51 V44 A8,8 0 0 1 62,44 V51"
+        android:strokeWidth="3.4"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+    <path
+        android:fillColor="#262476"
+        android:pathData="M44.2,51 A1.8,1.8 0 1 0 47.8,51 A1.8,1.8 0 1 0 44.2,51 Z M60.2,51 A1.8,1.8 0 1 0 63.8,51 A1.8,1.8 0 1 0 60.2,51 Z" />
+    <path
+        android:pathData="M45,63 L51,69 L63,57"
+        android:strokeWidth="4.2"
+        android:strokeColor="#262476"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M70,30 Q70.8,34.2 75,35 Q70.8,35.8 70,40 Q69.2,35.8 65,35 Q69.2,34.2 70,30 Z" />
+</vector>

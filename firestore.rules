@@ -1,0 +1,78 @@
+rules_version = '2';
+// UTS SmartShop — Firestore security rules (design document section 7.5).
+// Deploy: firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isStaff() { return signedIn() && myRole() == 'staff'; }
+
+    // An admin added this email in More -> Staff accounts.
+    function invitedAsStaff() {
+      return exists(/databases/$(database)/documents/staffInvites/$(request.auth.token.email));
+    }
+    // The shop has no admin yet: the first staff writes config/setup in the
+    // same batch, so this works only once.
+    function firstAdmin() {
+      return !exists(/databases/$(database)/documents/config/setup)
+          && existsAfter(/databases/$(database)/documents/config/setup);
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+      // Students create their own profile, never with free points. A staff
+      // profile needs an invite from an admin (or is the very first admin).
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.greenPoints == 0
+                    && (request.resource.data.role == 'student'
+                        || (request.resource.data.role == 'staff'
+                            && (invitedAsStaff() || firstAdmin())));
+      // Students may edit their profile but not role or points; staff may update points
+      allow update: if isStaff() || (signedIn() && request.auth.uid == uid
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.greenPoints == resource.data.greenPoints);
+    }
+
+    // Emails allowed to join as staff, managed by staff in the app.
+    match /staffInvites/{email} {
+      allow read: if isStaff()
+                  || (signedIn() && request.auth.token.email == email);
+      allow create, delete: if isStaff();
+    }
+
+    // config/setup: written once, together with the first admin's profile.
+    match /config/{docId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && docId == 'setup'
+                    && request.resource.data.firstAdmin == request.auth.uid
+                    && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
+    }
+
+    match /products/{barcode} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+    }
+
+    match /stock_movements/{id} {
+      allow read, write: if isStaff();
+    }
+
+    match /orders/{orderId} {
+      allow read: if signedIn()
+                  && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if isStaff() || (signedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.type == 'preorder'
+                    && request.resource.data.status == 'pending');
+      // Students may only cancel their own pending order; staff handle the rest
+      allow update: if isStaff() || (signedIn()
+                    && resource.data.userId == request.auth.uid
+                    && resource.data.status == 'pending'
+                    && request.resource.data.status == 'cancelled'
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));
+    }
+  }
+}

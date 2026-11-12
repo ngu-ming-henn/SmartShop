@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "114059968790",
+    "firebase_url": "https://testdb-3da20-default-rtdb.firebaseio.com",
+    "project_id": "testdb-3da20",
+    "storage_bucket": "testdb-3da20.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:114059968790:android:ae903f878c21c8945bd037",
+        "android_client_info": {
+          "package_name": "com.ssc.smartshop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6Jr7JA9WR6IHtG7Csgfxjwfz36zPCjvo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
