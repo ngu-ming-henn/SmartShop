@@ -9,65 +9,26 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
-import '../../models/order.dart';
-import '../../models/stock_movement.dart';
-import '../../services/order_service.dart';
-import '../../services/stock_service.dart';
+import '../../viewmodels/staff/reports_view_model.dart';
 import '../../widgets/common.dart';
 import '../../widgets/motion.dart';
 
 /// Sales chart, top products and the sustainability metrics (section 10).
-class ReportsScreen extends StatefulWidget {
+/// Numbers from [ReportsViewModel].
+class ReportsScreen extends StatelessWidget {
   const ReportsScreen({super.key});
 
   @override
-  State<ReportsScreen> createState() => _ReportsScreenState();
-}
-
-class _ReportsScreenState extends State<ReportsScreen> {
-  int _days = 7;
-  late DateTime _since;
-  late Stream<List<Order>> _orders;
-  late Stream<List<StockMovement>> _movements;
-
-  @override
-  void initState() {
-    super.initState();
-    _subscribe();
-  }
-
-  void _subscribe() {
-    final today = dateOnly(DateTime.now());
-    _since = DateTime(today.year, today.month, today.day - (_days - 1));
-    _orders = context.read<OrderService>().watchOrdersSince(_since);
-    _movements = context.read<StockService>().watchMovementsSince(_since);
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final vm = context.watch<ReportsViewModel>();
+    final report = vm.report;
     return Scaffold(
       appBar: AppBar(title: Text(context.tr('Reports'))),
-      body: StreamBuilder<List<Order>>(
-        stream: _orders,
-        builder: (context, orderSnap) => StreamBuilder<List<StockMovement>>(
-          stream: _movements,
-          builder: (context, moveSnap) {
-            final error = orderSnap.error ?? moveSnap.error;
-            if (error != null) return ErrorView(error: error);
-            if (!orderSnap.hasData || !moveSnap.hasData) {
-              return const LoadingView();
-            }
-            // While a new period loads, keep the previous render, dimmed.
-            final refreshing =
-                orderSnap.connectionState == ConnectionState.waiting ||
-                moveSnap.connectionState == ConnectionState.waiting;
-            final report = _Report.build(
-              orders: orderSnap.data!,
-              movements: moveSnap.data!,
-              since: _since,
-              days: _days,
-            );
-            return ListView(
+      body: vm.error != null
+          ? ErrorView(error: vm.error!)
+          : report == null
+          ? const LoadingView()
+          : ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 // One filter row above everything it scopes.
@@ -82,132 +43,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       label: Text(context.tr('Last 30 days')),
                     ),
                   ],
-                  selected: {_days},
-                  onSelectionChanged: (s) => setState(() {
-                    _days = s.first;
-                    _subscribe();
-                  }),
+                  selected: {vm.days},
+                  onSelectionChanged: (s) => vm.showDays(s.first),
                 ),
                 const SizedBox(height: 16),
+                // While a new period loads, keep the previous one, dimmed.
                 AnimatedOpacity(
-                  opacity: refreshing ? 0.5 : 1,
+                  opacity: vm.refreshing ? 0.5 : 1,
                   duration: const Duration(milliseconds: 200),
                   child: _ReportBody(report: report),
                 ),
               ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-/// All numbers for one period, computed once per snapshot.
-class _Report {
-  _Report({
-    required this.dailySales,
-    required this.salesSen,
-    required this.orderCount,
-    required this.preorderCount,
-    required this.topProducts,
-    required this.itemsSaved,
-    required this.itemsExpired,
-    required this.receiptsAvoided,
-    required this.bagsAvoided,
-    required this.preorderNoBagCount,
-    required this.outOfStockEvents,
-    required this.queueMinutesSaved,
-  });
-
-  final List<({DateTime day, int sen, int orders})> dailySales;
-  final int salesSen;
-  final int orderCount;
-  final int preorderCount;
-  final List<({String name, int qty})> topProducts;
-  final int itemsSaved;
-  final int itemsExpired;
-  final int receiptsAvoided;
-  final int bagsAvoided;
-  final int preorderNoBagCount;
-  final int outOfStockEvents;
-  final int queueMinutesSaved;
-
-  /// MOV: at least 20% of transactions through pre-order.
-  int get preorderSharePct =>
-      orderCount == 0 ? 0 : (preorderCount * 100 / orderCount).round();
-
-  /// MOV: at least 50% of pre-orders without a plastic bag.
-  int get preorderNoBagPct => preorderCount == 0
-      ? 0
-      : (preorderNoBagCount * 100 / preorderCount).round();
-
-  factory _Report.build({
-    required List<Order> orders,
-    required List<StockMovement> movements,
-    required DateTime since,
-    required int days,
-  }) {
-    // Only collected orders are sales (money taken at the counter).
-    final sold = orders.where((o) => o.isCollected).toList();
-
-    final senByDay = List.filled(days, 0);
-    final ordersByDay = List.filled(days, 0);
-    for (final o in sold) {
-      final i = daysUntil(o.sortTime, from: since);
-      if (i >= 0 && i < days) {
-        senByDay[i] += o.totalSen;
-        ordersByDay[i]++;
-      }
-    }
-
-    final qtyByProduct = <String, ({String name, int qty})>{};
-    for (final o in sold) {
-      for (final item in o.items) {
-        final prev = qtyByProduct[item.productId];
-        qtyByProduct[item.productId] = (
-          name: item.name,
-          qty: (prev?.qty ?? 0) + item.qty,
-        );
-      }
-    }
-    final top = qtyByProduct.values.toList()
-      ..sort((a, b) => b.qty.compareTo(a.qty));
-
-    final preorders = sold.where((o) => o.isPreorder).length;
-    return _Report(
-      dailySales: [
-        for (var i = 0; i < days; i++)
-          (
-            day: DateTime(since.year, since.month, since.day + i),
-            sen: senByDay[i],
-            orders: ordersByDay[i],
-          ),
-      ],
-      salesSen: sold.fold(0, (sum, o) => sum + o.totalSen),
-      orderCount: sold.length,
-      preorderCount: preorders,
-      topProducts: top.take(5).toList(),
-      itemsSaved: sold.fold(0, (sum, o) => sum + o.saveFoodItemCount),
-      itemsExpired: movements
-          .where((m) => m.type == MovementType.expired)
-          .fold(0, (sum, m) => sum + m.quantity.abs()),
-      receiptsAvoided: sold.where((o) => o.userId != null).length,
-      bagsAvoided: sold.where((o) => o.noPlasticBag).length,
-      preorderNoBagCount: sold
-          .where((o) => o.isPreorder && o.noPlasticBag)
-          .length,
-      outOfStockEvents: movements
-          .where((m) => m.quantity < 0 && m.stockAfter == 0)
-          .length,
-      queueMinutesSaved: preorders * AppRules.minutesSavedPerPreorder,
+            ),
     );
   }
 }
 
 class _ReportBody extends StatelessWidget {
   const _ReportBody({required this.report});
-  final _Report report;
+  final Report report;
 
   @override
   Widget build(BuildContext context) {

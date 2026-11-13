@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
+import 'package:provider/provider.dart';
 import 'package:smartshop/core/constants.dart';
 import 'package:smartshop/core/theme.dart';
 import 'package:smartshop/core/utils/geo.dart';
@@ -97,7 +98,10 @@ void main() {
         theme: buildAppTheme(useGoogleFonts: false),
         supportedLocales: AppStrings.supportedLocales,
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        home: ShopMapScreen(locationSource: gps),
+        home: ChangeNotifierProvider(
+          create: (_) => ShopMapViewModel(gps),
+          child: const ShopMapScreen(),
+        ),
       ),
     );
     await tester.pump();

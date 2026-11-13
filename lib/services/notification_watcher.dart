@@ -3,9 +3,9 @@ import 'dart:async';
 import '../core/utils/format.dart';
 import '../l10n/strings.dart';
 import '../models/app_user.dart';
-import '../services/notification_service.dart';
-import '../services/order_service.dart';
-import '../services/product_service.dart';
+import 'notification_service.dart';
+import 'order_service.dart';
+import 'product_service.dart';
 
 /// Watches Firestore while the app runs and shows local notifications:
 /// "Order ready" (S1) and Save Food deals for students; low-stock and

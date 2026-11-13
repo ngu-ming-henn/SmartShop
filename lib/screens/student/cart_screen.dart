@@ -6,36 +6,20 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/cart_provider.dart';
-import '../../services/order_service.dart';
+import '../../viewmodels/cart_view_model.dart';
+import '../../viewmodels/student/checkout_view_model.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_widgets.dart';
 
 /// Cart & Checkout: items, total, "No plastic bag" toggle, Pay at counter.
-class CartScreen extends StatefulWidget {
+/// The cart is [CartViewModel]; placing the order is [CheckoutViewModel].
+class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
-  @override
-  State<CartScreen> createState() => _CartScreenState();
-}
-
-class _CartScreenState extends State<CartScreen> {
-  bool _busy = false;
-
-  Future<void> _placeOrder() async {
-    final cart = context.read<CartProvider>();
-    final user = context.read<AuthProvider>().user;
-    if (user == null || cart.isEmpty) return;
-    setState(() => _busy = true);
+  Future<void> _placeOrder(BuildContext context) async {
     try {
-      final result = await context.read<OrderService>().placePreorder(
-        user: user,
-        items: cart.toOrderItems(),
-        noPlasticBag: cart.noPlasticBag,
-      );
-      cart.clear();
-      if (!mounted) return;
+      final result = await context.read<CheckoutViewModel>().placeOrder();
+      if (result == null || !context.mounted) return;
       showSnack(
         context,
         context.tr(
@@ -46,15 +30,14 @@ class _CartScreenState extends State<CartScreen> {
       );
       context.pushReplacement('/order/${result.orderId}');
     } catch (e) {
-      if (mounted) showError(context, e);
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      if (context.mounted) showError(context, e);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final cart = context.watch<CartProvider>();
+    final cart = context.watch<CartViewModel>();
+    final busy = context.select<CheckoutViewModel, bool>((vm) => vm.busy);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -198,8 +181,8 @@ class _CartScreenState extends State<CartScreen> {
                 ),
                 const SizedBox(height: 16),
                 FilledButton.icon(
-                  onPressed: _busy ? null : _placeOrder,
-                  icon: _busy
+                  onPressed: busy ? null : () => _placeOrder(context),
+                  icon: busy
                       ? const SizedBox.square(
                           dimension: 20,
                           child: CircularProgressIndicator(strokeWidth: 2.5),

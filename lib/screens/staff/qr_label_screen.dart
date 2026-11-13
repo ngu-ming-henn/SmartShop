@@ -4,38 +4,26 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
-import '../../models/product.dart';
-import '../../services/product_service.dart';
+import '../../viewmodels/staff/qr_label_view_model.dart';
 import '../../widgets/common.dart';
 
 /// QR label for items without a barcode (C2): kuih, bread, loose stationery.
-/// Screenshot it and print, or show it on a shelf tablet.
-class QrLabelScreen extends StatefulWidget {
-  const QrLabelScreen({super.key, required this.code});
-  final String code;
-
-  @override
-  State<QrLabelScreen> createState() => _QrLabelScreenState();
-}
-
-class _QrLabelScreenState extends State<QrLabelScreen> {
-  late final Stream<Product?> _product = context
-      .read<ProductService>()
-      .watchProduct(widget.code);
+/// Screenshot it and print, or show it on a shelf tablet
+/// ([QrLabelViewModel]).
+class QrLabelScreen extends StatelessWidget {
+  const QrLabelScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final vm = context.watch<QrLabelViewModel>();
     return Scaffold(
       appBar: AppBar(title: Text(context.tr('QR label'))),
-      body: StreamBuilder<Product?>(
-        stream: _product,
-        builder: (context, snap) {
-          if (snap.hasError) return ErrorView(error: snap.error!);
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const LoadingView();
-          }
-          final p = snap.data;
+      body: Builder(
+        builder: (context) {
+          if (vm.error != null) return ErrorView(error: vm.error!);
+          if (vm.loading) return const LoadingView();
+          final p = vm.product;
           if (p == null) {
             return EmptyState(
               icon: Icons.search_off,

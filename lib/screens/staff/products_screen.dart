@@ -4,14 +4,13 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/product.dart';
-import '../../services/product_service.dart';
+import '../../viewmodels/staff/products_view_model.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_widgets.dart';
 import '../common/scanner_page.dart';
 
-enum _Filter { all, lowStock, noBarcode, disabled }
-
-/// Products: add / edit / disable; scan a barcode to fill in.
+/// Products: add / edit / disable; scan a barcode to fill in
+/// ([ProductsViewModel]).
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
 
@@ -20,12 +19,6 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
-  late final Stream<List<Product>> _products = context
-      .read<ProductService>()
-      .watchAllProducts();
-  String _query = '';
-  _Filter _filter = _Filter.all;
-
   Future<void> _add() async {
     final choice = await showModalBottomSheet<String>(
       context: context,
@@ -75,23 +68,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-  bool _matches(Product p) {
-    if (_query.isNotEmpty &&
-        !p.name.toLowerCase().contains(_query) &&
-        !p.barcode.toLowerCase().contains(_query)) {
-      return false;
-    }
-    return switch (_filter) {
-      _Filter.all => true,
-      _Filter.lowStock => p.needsRestock,
-      _Filter.noBarcode => p.hasShortCode,
-      _Filter.disabled => !p.isActive,
-    };
-  }
-
   Future<void> _toggleActive(Product p) async {
     try {
-      await context.read<ProductService>().setActive(p.barcode, !p.isActive);
+      await context.read<ProductsViewModel>().toggleActive(p);
       if (mounted) {
         showSnack(
           context,
@@ -107,6 +86,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<ProductsViewModel>();
     return Scaffold(
       appBar: AppBar(title: Text(context.tr('Products'))),
       floatingActionButton: FloatingActionButton.extended(
@@ -123,7 +103,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 hintText: context.tr('Search by name or code'),
                 prefixIcon: Icon(Icons.search),
               ),
-              onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+              onChanged: vm.search,
             ),
           ),
           SizedBox(
@@ -133,15 +113,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
                 for (final (f, label) in const [
-                  (_Filter.all, 'All'),
-                  (_Filter.lowStock, 'Low stock'),
-                  (_Filter.noBarcode, 'No barcode (QR label)'),
-                  (_Filter.disabled, 'Disabled'),
+                  (ProductFilter.all, 'All'),
+                  (ProductFilter.lowStock, 'Low stock'),
+                  (ProductFilter.noBarcode, 'No barcode (QR label)'),
+                  (ProductFilter.disabled, 'Disabled'),
                 ]) ...[
                   ChoiceChip(
                     label: Text(context.tr(label)),
-                    selected: _filter == f,
-                    onSelected: (_) => setState(() => _filter = f),
+                    selected: vm.filter == f,
+                    onSelected: (_) => vm.show(f),
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -149,19 +129,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ),
           ),
           Expanded(
-            child: StreamBuilder<List<Product>>(
-              stream: _products,
-              builder: (context, snap) {
-                if (snap.hasError) return ErrorView(error: snap.error!);
-                if (!snap.hasData) return const LoadingView();
-                final items = snap.data!.where(_matches).toList();
+            child: Builder(
+              builder: (context) {
+                if (vm.error != null) return ErrorView(error: vm.error!);
+                if (vm.loading) return const LoadingView();
+                final items = vm.items;
                 if (items.isEmpty) {
                   return EmptyState(
                     icon: Icons.inventory_2_outlined,
                     title: context.tr(
-                      snap.data!.isEmpty ? 'No products yet' : 'No matches',
+                      vm.shopIsEmpty ? 'No products yet' : 'No matches',
                     ),
-                    message: snap.data!.isEmpty
+                    message: vm.shopIsEmpty
                         ? context.tr(
                             'Add products, or load the sample catalogue from More.',
                           )

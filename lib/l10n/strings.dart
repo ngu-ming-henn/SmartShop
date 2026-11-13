@@ -16,7 +16,7 @@ class AppStrings {
   static const supportedLocales = [Locale(english), Locale(malay)];
 
   /// Current language, for code without a BuildContext (notifications,
-  /// error messages). Kept up to date by SettingsProvider.
+  /// error messages). Kept up to date by SettingsViewModel.
   static String language = english;
 
   static String translate(

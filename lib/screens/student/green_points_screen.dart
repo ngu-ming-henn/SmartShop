@@ -7,46 +7,28 @@ import '../../core/theme.dart';
 import '../../core/utils/format.dart';
 import '../../core/utils/points.dart';
 import '../../l10n/strings.dart';
-import '../../models/order.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/order_service.dart';
+import '../../viewmodels/auth_view_model.dart';
+import '../../viewmodels/student/green_points_view_model.dart';
 import '../../widgets/common.dart';
 
-/// Points balance, how to earn, history and the student's own impact.
-class GreenPointsScreen extends StatefulWidget {
+/// Points balance, how to earn, history and the student's own impact
+/// ([GreenPointsViewModel]).
+class GreenPointsScreen extends StatelessWidget {
   const GreenPointsScreen({super.key});
-
-  @override
-  State<GreenPointsScreen> createState() => _GreenPointsScreenState();
-}
-
-class _GreenPointsScreenState extends State<GreenPointsScreen> {
-  late final Stream<List<Order>> _orders = context
-      .read<OrderService>()
-      .watchMyOrders(context.read<AuthProvider>().user!.uid);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final points = context.select<AuthProvider, int>(
+    final vm = context.watch<GreenPointsViewModel>();
+    final points = context.select<AuthViewModel, int>(
       (a) => a.user?.greenPoints ?? 0,
     );
 
     return Scaffold(
       appBar: AppBar(title: Text(context.tr('Green points'))),
-      body: StreamBuilder<List<Order>>(
-        stream: _orders,
-        builder: (context, snap) {
-          final collected = (snap.data ?? const <Order>[])
-              .where((o) => o.isCollected)
-              .toList();
-          final history = collected.where((o) => o.pointsEarned > 0).toList();
-          final bagsSaved = collected.where((o) => o.noPlasticBag).length;
-          final foodSaved = collected.fold(
-            0,
-            (sum, o) => sum + o.saveFoodItemCount,
-          );
-
+      body: Builder(
+        builder: (context) {
+          final history = vm.history;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -94,7 +76,7 @@ class _GreenPointsScreenState extends State<GreenPointsScreen> {
                   Expanded(
                     child: StatCard(
                       label: context.tr('Plastic bags avoided'),
-                      value: '$bagsSaved',
+                      value: '${vm.plasticBagsSaved}',
                       icon: Icons.shopping_bag_outlined,
                       color: context.eco,
                     ),
@@ -103,7 +85,7 @@ class _GreenPointsScreenState extends State<GreenPointsScreen> {
                   Expanded(
                     child: StatCard(
                       label: context.tr('Food items saved'),
-                      value: '$foodSaved',
+                      value: '${vm.foodItemsSaved}',
                       icon: Icons.bakery_dining,
                       color: const Color(0xFFB26A00),
                     ),
@@ -112,7 +94,7 @@ class _GreenPointsScreenState extends State<GreenPointsScreen> {
                   Expanded(
                     child: StatCard(
                       label: context.tr('Paper receipts saved'),
-                      value: '${collected.length}',
+                      value: '${vm.paperReceiptsSaved}',
                       icon: Icons.receipt_long,
                       color: const Color(0xFF1565C0),
                     ),
@@ -158,7 +140,7 @@ class _GreenPointsScreenState extends State<GreenPointsScreen> {
                 ),
               ),
               SectionHeader(title: context.tr('History')),
-              if (snap.connectionState == ConnectionState.waiting)
+              if (vm.loading)
                 const LoadingView()
               else if (history.isEmpty)
                 EmptyState(

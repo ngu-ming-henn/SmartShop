@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/strings.dart';
-import '../../providers/auth_provider.dart';
+import '../../viewmodels/auth_view_model.dart';
 import '../../widgets/auth_layout.dart';
 import '../../widgets/brand.dart';
 import '../../widgets/common.dart';
@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _busy = true);
     try {
       // On success the router redirects by role (student -> /home, staff -> /staff).
-      await context.read<AuthProvider>().signIn(_email.text, _password.text);
+      await context.read<AuthViewModel>().signIn(_email.text, _password.text);
     } catch (e) {
       if (mounted) showError(context, e);
     } finally {

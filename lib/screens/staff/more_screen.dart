@@ -4,17 +4,19 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme.dart';
 import '../../l10n/strings.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/product_service.dart';
-import '../../services/sample_data.dart';
+import '../../viewmodels/auth_view_model.dart';
+import '../../viewmodels/staff/more_view_model.dart';
 import '../../widgets/common.dart';
 import '../../widgets/preferences_card.dart';
 import '../../widgets/user_avatar.dart';
 
+/// Staff "More" tab: profile, language and appearance, and links to the
+/// other staff tools ([MoreViewModel]).
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
 
   Future<void> _seed(BuildContext context) async {
+    final vm = context.read<MoreViewModel>();
     final ok = await confirm(
       context,
       title: context.tr('Load sample products?'),
@@ -22,16 +24,14 @@ class MoreScreen extends StatelessWidget {
         'Adds {count} demo products (food, drinks, snacks, stationery...) '
         'with stock, expiry dates and descriptions. Existing products keep '
         'their stock and prices.',
-        {'count': buildSampleProducts(DateTime.now()).length},
+        {'count': vm.sampleProductCount},
       ),
       confirmLabel: context.tr('Load'),
       cancelLabel: context.tr('Cancel'),
     );
     if (!ok || !context.mounted) return;
     try {
-      final result = await context.read<ProductService>().seedSampleProducts(
-        context.read<AuthProvider>().user!.uid,
-      );
+      final result = await vm.loadSampleProducts();
       if (context.mounted) {
         showSnack(
           context,
@@ -56,12 +56,12 @@ class MoreScreen extends StatelessWidget {
       message: context.tr('You can log in again any time.'),
       confirmLabel: context.tr('Log out'),
     );
-    if (ok && context.mounted) await context.read<AuthProvider>().signOut();
+    if (ok && context.mounted) await context.read<AuthViewModel>().signOut();
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
+    final user = context.watch<AuthViewModel>().user;
     Widget tile(
       IconData icon,
       String title,

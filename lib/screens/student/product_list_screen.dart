@@ -5,38 +5,24 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../core/router.dart';
 import '../../l10n/strings.dart';
-import '../../models/product.dart';
-import '../../services/product_service.dart';
+import '../../viewmodels/student/product_list_view_model.dart';
 import '../../widgets/cart_button.dart';
 import '../../widgets/common.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/product_widgets.dart';
 
-/// Search / Category: product list with filters.
+/// Search / Category: product list with filters ([ProductListViewModel]).
 class ProductListScreen extends StatefulWidget {
-  const ProductListScreen({
-    super.key,
-    this.initialCategory,
-    this.initialQuery,
-    this.saveFoodOnly = false,
-  });
-
-  final String? initialCategory;
-  final String? initialQuery;
-  final bool saveFoodOnly;
+  const ProductListScreen({super.key});
 
   @override
   State<ProductListScreen> createState() => _ProductListScreenState();
 }
 
 class _ProductListScreenState extends State<ProductListScreen> {
-  late final Stream<List<Product>> _products = context
-      .read<ProductService>()
-      .watchActiveProducts();
-  late final _search = TextEditingController(text: widget.initialQuery ?? '');
-  late String? _category = widget.initialCategory;
-  late bool _saveFood = widget.saveFoodOnly;
-  bool _inStockOnly = false;
+  late final _search = TextEditingController(
+    text: context.read<ProductListViewModel>().query,
+  );
 
   @override
   void dispose() {
@@ -44,25 +30,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
     super.dispose();
   }
 
-  List<Product> _filter(List<Product> all) {
-    final q = _search.text.trim().toLowerCase();
-    return all.where((p) {
-      if (_category != null && p.category != _category) return false;
-      if (_saveFood && !p.isOnSaveFood) return false;
-      if (_inStockOnly && p.isOutOfStock) return false;
-      if (q.isEmpty) return true;
-      return p.name.toLowerCase().contains(q) || p.barcode.toLowerCase() == q;
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<ProductListViewModel>();
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _saveFood
+          vm.saveFoodOnly
               ? context.tr('Save Food deals')
-              : context.tr(_category ?? 'Products'),
+              : context.tr(vm.category ?? 'Products'),
         ),
         actions: const [CartButton()],
       ),
@@ -73,16 +49,19 @@ class _ProductListScreenState extends State<ProductListScreen> {
             child: TextField(
               controller: _search,
               textInputAction: TextInputAction.search,
-              onChanged: (_) => setState(() {}),
+              onChanged: vm.search,
               decoration: InputDecoration(
                 hintText: context.tr('Search products'),
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: _search.text.isEmpty
+                suffixIcon: vm.query.isEmpty
                     ? null
                     : IconButton(
                         tooltip: context.tr('Clear'),
                         icon: const Icon(Icons.clear),
-                        onPressed: () => setState(_search.clear),
+                        onPressed: () {
+                          _search.clear();
+                          vm.search('');
+                        },
                       ),
               ),
             ),
@@ -95,33 +74,32 @@ class _ProductListScreenState extends State<ProductListScreen> {
               children: [
                 FilterChip(
                   label: Text(context.tr('🍞 Save Food')),
-                  selected: _saveFood,
-                  onSelected: (v) => setState(() => _saveFood = v),
+                  selected: vm.saveFoodOnly,
+                  onSelected: vm.showSaveFoodOnly,
                 ),
                 const SizedBox(width: 8),
                 FilterChip(
                   label: Text(context.tr('In stock')),
-                  selected: _inStockOnly,
-                  onSelected: (v) => setState(() => _inStockOnly = v),
+                  selected: vm.inStockOnly,
+                  onSelected: vm.showInStockOnly,
                 ),
                 for (final c in productCategories) ...[
                   const SizedBox(width: 8),
                   ChoiceChip(
                     label: Text(context.tr(c)),
-                    selected: _category == c,
-                    onSelected: (v) => setState(() => _category = v ? c : null),
+                    selected: vm.category == c,
+                    onSelected: (v) => vm.showCategory(v ? c : null),
                   ),
                 ],
               ],
             ),
           ),
           Expanded(
-            child: StreamBuilder<List<Product>>(
-              stream: _products,
-              builder: (context, snap) {
-                if (snap.hasError) return ErrorView(error: snap.error!);
-                if (!snap.hasData) return const LoadingView();
-                final items = _filter(snap.data!);
+            child: Builder(
+              builder: (context) {
+                if (vm.error != null) return ErrorView(error: vm.error!);
+                final items = vm.items;
+                if (items == null) return const LoadingView();
                 if (items.isEmpty) {
                   return EmptyState(
                     icon: Icons.search_off,

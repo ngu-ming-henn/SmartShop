@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/theme.dart';
 import '../l10n/strings.dart';
-import '../providers/settings_provider.dart';
+import '../viewmodels/settings_view_model.dart';
 
 /// Language (English / Bahasa Melayu), light / dark mode and notifications.
 class PreferencesCard extends StatelessWidget {
@@ -11,7 +11,7 @@ class PreferencesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
+    final settings = context.watch<SettingsViewModel>();
     final theme = Theme.of(context);
 
     Widget label(IconData icon, String text) => Padding(

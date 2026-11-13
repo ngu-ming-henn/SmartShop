@@ -24,7 +24,7 @@ class CartLine {
 }
 
 /// The student's cart. Staff "Counter Sale" uses its own instance.
-class CartProvider extends ChangeNotifier {
+class CartViewModel extends ChangeNotifier {
   final Map<String, CartLine> _lines = {};
 
   /// On by default: a gentle nudge towards the greener choice.

@@ -8,20 +8,14 @@ import '../../core/theme.dart';
 import '../../core/utils/codes.dart';
 import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
-import '../../models/product.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/expiry_scan_service.dart';
-import '../../services/product_service.dart';
+import '../../viewmodels/staff/product_form_view_model.dart';
 import '../../widgets/common.dart';
 import '../common/scanner_page.dart';
 
-/// Add a product ([newBarcode], "generate" for an SK- code) or edit one
-/// ([editBarcode]). Stock is not edited here: use Stock In / Out.
+/// Add a product or edit one ([ProductFormViewModel]). Stock is not edited
+/// here: use Stock In / Out.
 class ProductFormScreen extends StatefulWidget {
-  const ProductFormScreen({super.key, this.newBarcode, this.editBarcode});
-
-  final String? newBarcode;
-  final String? editBarcode;
+  const ProductFormScreen({super.key});
 
   @override
   State<ProductFormScreen> createState() => _ProductFormScreenState();
@@ -39,28 +33,18 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   );
   final _imageUrl = TextEditingController();
   final _openingStock = TextEditingController(text: '0');
-  final _expiryScanner = ExpiryScanService();
 
-  String _category = productCategories.first;
-  DateTime? _expiryDate;
-  bool _isActive = true;
-  String _source = MovementSource.manual;
-  Product? _original;
-  bool _loading = false;
-  bool _busy = false;
-
-  bool get _isNew => widget.editBarcode == null;
+  ProductFormViewModel get _vm => context.read<ProductFormViewModel>();
 
   @override
   void initState() {
     super.initState();
-    if (!_isNew) {
+    final vm = _vm;
+    _code.text = vm.initialCode;
+    if (!vm.isNew) {
       _loadExisting();
-    } else if (widget.newBarcode == 'generate') {
+    } else if (vm.wantsGeneratedCode) {
       _generateCode();
-    } else if (widget.newBarcode != null) {
-      _code.text = widget.newBarcode!;
-      _source = MovementSource.barcode;
     }
   }
 
@@ -78,23 +62,18 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     ]) {
       c.dispose();
     }
-    _expiryScanner.dispose();
     super.dispose();
   }
 
   Future<void> _loadExisting() async {
-    setState(() => _loading = true);
     try {
-      final p = await context.read<ProductService>().findByBarcode(
-        widget.editBarcode!,
-      );
+      final p = await _vm.loadExisting();
       if (!mounted) return;
       if (p == null) {
         showSnack(context, context.tr('Product not found.'));
         context.pop();
         return;
       }
-      _original = p;
       _code.text = p.barcode;
       _name.text = p.name;
       _description.text = p.description ?? '';
@@ -104,27 +83,15 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           : senToInput(p.saveFoodPriceSen!);
       _threshold.text = '${p.lowStockThreshold}';
       _imageUrl.text = p.imageUrl ?? '';
-      _category = productCategories.contains(p.category)
-          ? p.category
-          : 'Others';
-      _expiryDate = p.expiryDate;
-      _isActive = p.isActive;
     } catch (e) {
       if (mounted) showError(context, e);
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _generateCode() async {
     try {
-      final code = await context.read<ProductService>().newShortCode();
-      if (mounted) {
-        setState(() {
-          _code.text = code;
-          _source = MovementSource.manual;
-        });
-      }
+      final code = await _vm.generateCode();
+      if (mounted) _code.text = code;
     } catch (e) {
       if (mounted) showError(context, e);
     }
@@ -136,16 +103,14 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       title: context.tr('Scan product barcode'),
     );
     if (code != null && mounted) {
-      setState(() {
-        _code.text = code;
-        _source = MovementSource.barcode;
-      });
+      _code.text = code;
+      _vm.usedScannedCode();
     }
   }
 
   Future<void> _readExpiry() async {
     try {
-      final date = await _expiryScanner.scanExpiryDate();
+      final date = await _vm.readExpiryDate();
       if (!mounted) return;
       if (date == null) {
         showSnack(
@@ -153,7 +118,6 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           context.tr('Date not found, please pick it manually'),
         );
       } else {
-        setState(() => _expiryDate = date);
         showSnack(
           context,
           context.tr('Read {date}. Please check it.', {
@@ -177,51 +141,34 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _expiryDate ?? now.add(const Duration(days: 7)),
+      initialDate: _vm.expiryDate ?? now.add(const Duration(days: 7)),
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 10),
       helpText: context.tr('Expiry date'),
     );
-    if (picked != null) setState(() => _expiryDate = picked);
+    if (picked != null) _vm.setExpiry(picked);
   }
 
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
-    final saveFood = _saveFoodPrice.text.trim().isEmpty
-        ? null
-        : parseRMToSen(_saveFoodPrice.text);
-    final product = Product(
-      barcode: _code.text.trim(),
-      name: _name.text.trim(),
-      category: _category,
-      priceSen: parseRMToSen(_price.text)!,
-      saveFoodPriceSen: saveFood,
-      stock: _isNew ? int.parse(_openingStock.text) : _original!.stock,
-      lowStockThreshold: int.parse(_threshold.text),
-      expiryDate: _expiryDate,
-      imageUrl: _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim(),
-      description: _description.text.trim().isEmpty
-          ? null
-          : _description.text.trim(),
-      isActive: _isActive,
-    );
-
-    setState(() => _busy = true);
-    final service = context.read<ProductService>();
+    final vm = _vm;
     try {
-      if (_isNew) {
-        await service.createProduct(
-          product,
-          staffId: context.read<AuthProvider>().user!.uid,
-          source: _source,
-        );
-      } else {
-        await service.updateProduct(product);
-      }
+      final product = await vm.save(
+        code: _code.text,
+        name: _name.text,
+        description: _description.text,
+        priceSen: parseRMToSen(_price.text)!,
+        saveFoodPriceSen: _saveFoodPrice.text.trim().isEmpty
+            ? null
+            : parseRMToSen(_saveFoodPrice.text),
+        lowStockThreshold: int.parse(_threshold.text),
+        openingStock: vm.isNew ? int.parse(_openingStock.text) : 0,
+        imageUrl: _imageUrl.text,
+      );
       if (!mounted) return;
       showSnack(
         context,
-        context.tr(_isNew ? '{name} added' : '{name} saved', {
+        context.tr(vm.isNew ? '{name} added' : '{name} saved', {
           'name': product.name,
         }),
         action: product.hasShortCode
@@ -236,8 +183,6 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       context.pop();
     } catch (e) {
       if (mounted) showError(context, e);
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -250,11 +195,13 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final vm = context.watch<ProductFormViewModel>();
+    final isNew = vm.isNew;
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.tr(_isNew ? 'Add product' : 'Edit product')),
+        title: Text(context.tr(isNew ? 'Add product' : 'Edit product')),
       ),
-      body: _loading
+      body: vm.loading
           ? const LoadingView()
           : Form(
               key: _form,
@@ -263,11 +210,11 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                 children: [
                   TextFormField(
                     controller: _code,
-                    enabled: _isNew,
+                    enabled: isNew,
                     decoration: InputDecoration(
                       labelText: context.tr('Barcode / code'),
                       prefixIcon: const Icon(Icons.qr_code),
-                      suffixIcon: _isNew
+                      suffixIcon: isNew
                           ? IconButton(
                               tooltip: context.tr('Scan barcode'),
                               icon: const Icon(Icons.qr_code_scanner),
@@ -279,7 +226,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                         ? null
                         : context.tr('Scan or type a barcode (no "/")'),
                   ),
-                  if (_isNew)
+                  if (isNew)
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
@@ -316,7 +263,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: _category,
+                    initialValue: vm.category,
                     decoration: InputDecoration(
                       labelText: context.tr('Category'),
                     ),
@@ -324,7 +271,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                       for (final c in productCategories)
                         DropdownMenuItem(value: c, child: Text(context.tr(c))),
                     ],
-                    onChanged: (v) => setState(() => _category = v!),
+                    onChanged: (v) => vm.setCategory(v!),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -360,7 +307,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                       ),
                     ],
                   ),
-                  if (_isNew) ...[
+                  if (isNew) ...[
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _openingStock,
@@ -405,7 +352,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                     Text(
                       context.tr(
                         'Stock: {count} (change it on the Stock screen)',
-                        {'count': _original?.stock ?? 0},
+                        {'count': vm.original?.stock ?? 0},
                       ),
                       style: theme.textTheme.bodySmall,
                     ),
@@ -432,22 +379,21 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  _expiryDate == null
+                                  vm.expiryDate == null
                                       ? context.tr(
                                           'Expiry date: none (non-food)',
                                         )
                                       : context.tr('Expiry date: {date}', {
-                                          'date': formatDate(_expiryDate!),
+                                          'date': formatDate(vm.expiryDate!),
                                         }),
                                   style: theme.textTheme.titleSmall,
                                 ),
                               ),
-                              if (_expiryDate != null)
+                              if (vm.expiryDate != null)
                                 IconButton(
                                   tooltip: context.tr('Clear date'),
                                   icon: const Icon(Icons.clear),
-                                  onPressed: () =>
-                                      setState(() => _expiryDate = null),
+                                  onPressed: () => vm.setExpiry(null),
                                 ),
                             ],
                           ),
@@ -470,10 +416,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                       ),
                     ),
                   ),
-                  if (!_isNew)
+                  if (!isNew)
                     SwitchListTile(
-                      value: _isActive,
-                      onChanged: (v) => setState(() => _isActive = v),
+                      value: vm.isActive,
+                      onChanged: vm.setActive,
                       title: Text(context.tr('Sold in the app')),
                       subtitle: Text(
                         context.tr('Turn off to hide it from students'),
@@ -482,10 +428,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                     ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
-                    onPressed: _busy ? null : _save,
+                    onPressed: vm.busy ? null : _save,
                     icon: const Icon(Icons.save),
                     label: Text(
-                      context.tr(_isNew ? 'Add product' : 'Save changes'),
+                      context.tr(isNew ? 'Add product' : 'Save changes'),
                     ),
                   ),
                 ],

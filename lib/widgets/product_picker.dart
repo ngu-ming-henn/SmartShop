@@ -1,38 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../l10n/strings.dart';
 import '../models/product.dart';
-import '../services/product_service.dart';
 import 'common.dart';
 import 'product_widgets.dart';
 
 /// Bottom sheet to search and pick a product by name (when a barcode
-/// cannot be scanned).
+/// cannot be scanned). [products] comes from the screen's ViewModel.
 Future<Product?> showProductPicker(
   BuildContext context, {
-  bool activeOnly = true,
+  required Stream<List<Product>> products,
 }) {
   return showModalBottomSheet<Product>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => _ProductPicker(activeOnly: activeOnly),
+    builder: (_) => _ProductPicker(products: products),
   );
 }
 
 class _ProductPicker extends StatefulWidget {
-  const _ProductPicker({required this.activeOnly});
-  final bool activeOnly;
+  const _ProductPicker({required this.products});
+  final Stream<List<Product>> products;
 
   @override
   State<_ProductPicker> createState() => _ProductPickerState();
 }
 
 class _ProductPickerState extends State<_ProductPicker> {
-  late final Stream<List<Product>> _products = widget.activeOnly
-      ? context.read<ProductService>().watchActiveProducts()
-      : context.read<ProductService>().watchAllProducts();
   String _query = '';
 
   @override
@@ -54,7 +49,7 @@ class _ProductPickerState extends State<_ProductPicker> {
           ),
           Expanded(
             child: StreamBuilder<List<Product>>(
-              stream: _products,
+              stream: widget.products,
               builder: (context, snap) {
                 if (snap.hasError) return ErrorView(error: snap.error!);
                 if (!snap.hasData) return const LoadingView();

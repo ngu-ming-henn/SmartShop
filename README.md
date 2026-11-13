@@ -17,7 +17,7 @@ Team **Sustainable Smart Campus**. The build guide is `MAD_SmartShop_App_Develop
 | M7 | Product management: add / edit / disable, scan the barcode to fill it in | Staff → More → Products |
 | M8 | Stock in / out by scan or search, low-stock alerts, all logged in `stock_movements` | Staff → Stock, Alerts |
 | M9 | Digital receipts and purchase history | My Orders, receipt screen |
-| S1 | "Order ready" notification (plus Save Food deals for students, stock alerts for staff) | `providers/notification_watcher.dart` |
+| S1 | "Order ready" notification (plus Save Food deals for students, stock alerts for staff) | `services/notification_watcher.dart` |
 | S2 | Green points: +5 for no plastic bag (+10 per Save Food item) | Cart, Green Points, Profile |
 | S3 | Sales chart, top products, sustainability metrics (section 10) | Staff → Reports |
 | S4 | ⭐ AI Budget Planner: budget + any categories + "personalise" text (e.g. `chocolate, no spicy` / `tak nak pedas`) → 3 best combos → pre-order in one tap | Student Home → AI Budget Planner |
@@ -33,20 +33,35 @@ Not in this version: C3 (CSV import).
 
 **Translations:** English text in the code is the key; the Malay is in `lib/l10n/malay.dart`. Use `context.tr('...')` for new text. `test/translations_test.dart` fails if a text has no Malay entry.
 
+## Architecture: MVVM
+
+The app follows **Model-View-ViewModel** with the `provider` package:
+
+| Layer | Folder | Job |
+|---|---|---|
+| **Model** | `models/` + `services/` | The data (Product, Order, AppUser...) and everything that talks to Firebase, GPS or ML Kit |
+| **ViewModel** | `viewmodels/` | One per screen (e.g. `DashboardViewModel`, `HomeViewModel`): holds the screen's data and actions, follows live Firestore streams, no UI code |
+| **View** | `screens/` + `widgets/` | Draws the ViewModel and passes taps to it; never calls a service or Firebase |
+
+- `core/router.dart` creates each screen together with its ViewModel (`_mvvm(...)`), so the ViewModel and its live streams are disposed with the page.
+- App-wide ViewModels: `AuthViewModel` (login and role), `CartViewModel`, `SettingsViewModel` (language, light / dark mode).
+- `viewmodels/view_model.dart` is the base class: `follow()` keeps data live from Firestore (the View redraws by itself), `run()` shows a spinner while an action runs.
+- `test/architecture_test.dart` checks the rules on every test run; `test/view_model_test.dart` tests ViewModels with fake services (no phone, no Firebase).
+
 ## Project structure
 
 ```
 lib/
 ├── main.dart               Firebase init (+ emulator mode), runApp
-├── app.dart                Providers, MaterialApp.router, theme
-├── firebase_options.dart   PLACEHOLDER: replaced by `flutterfire configure`
-├── core/                   theme, go_router + role redirect, business rules, utils
-├── models/                 AppUser, Product, Order, StockMovement
-├── services/               all Firebase / ML Kit calls + AI Budget Planner (screens never call Firebase)
-├── providers/              AuthProvider, CartProvider, SettingsProvider, NotificationWatcher
-├── screens/{auth,student,staff,common}/
-└── widgets/                scanner, product tiles and cards, receipt, shared UI
-test/                       AI Budget Planner, expiry parser, business rules, widget tests
+├── app.dart                services + app-wide ViewModels, MaterialApp.router, theme
+├── firebase_options.dart   from `flutterfire configure`
+├── core/                   theme, go_router (+ MVVM wiring, role redirect), business rules, utils
+├── models/                 AppUser, Product, Order, StockMovement, budget plan
+├── services/               all Firebase / GPS / ML Kit calls, AI Budget Planner, notifications
+├── viewmodels/             base ViewModel, Auth / Cart / Settings, and {student,staff,common}/ per screen
+├── screens/{auth,student,staff,common}/   Views
+└── widgets/                scanner, product cards, 3D picture, receipt, shared UI
+test/                       business rules, AI planner, expiry parser, ViewModels, architecture, UI
 firestore.rules             security rules (section 7.5)
 ```
 

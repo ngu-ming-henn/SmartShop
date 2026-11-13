@@ -9,9 +9,8 @@ import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
 import '../../models/product.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/order_service.dart';
-import '../../services/product_service.dart';
+import '../../viewmodels/auth_view_model.dart';
+import '../../viewmodels/student/home_view_model.dart';
 import '../../widgets/brand.dart';
 import '../../widgets/cart_button.dart';
 import '../../widgets/common.dart';
@@ -21,25 +20,14 @@ import '../../widgets/product_widgets.dart';
 
 /// Search bar, categories, ready-order banner, ✨ AI Budget Planner card,
 /// Save Food deals (if any) and popular items. Sections slide in one after
-/// another.
-class StudentHomeScreen extends StatefulWidget {
+/// another. Data and actions: [HomeViewModel].
+class StudentHomeScreen extends StatelessWidget {
   const StudentHomeScreen({super.key});
 
   @override
-  State<StudentHomeScreen> createState() => _StudentHomeScreenState();
-}
-
-class _StudentHomeScreenState extends State<StudentHomeScreen> {
-  late final Stream<List<Product>> _products = context
-      .read<ProductService>()
-      .watchActiveProducts();
-  late final Stream<List<Order>> _myOrders = context
-      .read<OrderService>()
-      .watchMyOrders(context.read<AuthProvider>().user!.uid);
-
-  @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
+    final vm = context.watch<HomeViewModel>();
+    final user = context.watch<AuthViewModel>().user;
     final firstName = (user?.name ?? '').trim().split(' ').first;
     return Scaffold(
       appBar: AppBar(
@@ -57,28 +45,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           const SizedBox(width: 4),
         ],
       ),
-      body: StreamBuilder<List<Product>>(
-        stream: _products,
-        builder: (context, snap) {
-          if (snap.hasError) return ErrorView(error: snap.error!);
-          final products = snap.data;
-          final deals =
-              (products ?? const <Product>[])
-                  .where((p) => p.isOnSaveFood && !p.isOutOfStock)
-                  .toList()
-                ..sort(
-                  (a, b) => (a.expiryDate ?? DateTime(9999)).compareTo(
-                    b.expiryDate ?? DateTime(9999),
-                  ),
-                );
-          final popular =
-              (products ?? const <Product>[])
-                  .where((p) => !p.isOutOfStock)
-                  .toList()
-                ..sort((a, b) {
-                  final bySold = b.soldCount.compareTo(a.soldCount);
-                  return bySold != 0 ? bySold : a.name.compareTo(b.name);
-                });
+      body: Builder(
+        builder: (context) {
+          if (vm.error != null) return ErrorView(error: vm.error!);
+          final products = vm.products;
+          final deals = vm.deals;
+          final popular = vm.popular;
 
           final sections = <Widget>[
             Padding(
@@ -106,13 +78,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 ),
               ),
             ),
-            CategoriesAndDeal(
-              featured: [
-                ...deals,
-                ...popular.where((p) => !p.isOnSaveFood),
-              ].take(6).toList(),
-            ),
-            _ReadyOrdersBanner(orders: _myOrders),
+            CategoriesAndDeal(featured: vm.featured),
+            _ReadyOrdersBanner(orders: vm.readyOrders),
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: _BudgetPlannerCard(),
@@ -194,57 +161,49 @@ class _ProductCarousel extends StatelessWidget {
 /// pulse so it catches the eye.
 class _ReadyOrdersBanner extends StatelessWidget {
   const _ReadyOrdersBanner({required this.orders});
-  final Stream<List<Order>> orders;
+  final List<Order> orders;
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Order>>(
-      stream: orders,
-      builder: (context, snap) {
-        final ready = (snap.data ?? const <Order>[])
-            .where((o) => o.isReady)
-            .toList();
-        return AnimatedSize(
-          duration: const Duration(milliseconds: 300),
-          child: Column(
-            children: [
-              for (final o in ready)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: _Pulse(
-                    child: Card(
-                      color: AppColors.accent,
-                      child: ListTile(
-                        onTap: () => context.push('/order/${o.id}'),
-                        leading: const Icon(
-                          Icons.shopping_bag,
-                          color: AppColors.textOnAccent,
-                        ),
-                        title: Text(
-                          context.tr('Order {no} is READY', {
-                            'no': receiptNo(o.id),
-                          }),
-                          style: const TextStyle(
-                            color: AppColors.textOnAccent,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        subtitle: Text(
-                          context.tr('Show your pickup QR at the counter'),
-                          style: const TextStyle(color: AppColors.textOnAccent),
-                        ),
-                        trailing: const Icon(
-                          Icons.chevron_right,
-                          color: AppColors.textOnAccent,
-                        ),
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      child: Column(
+        children: [
+          for (final o in orders)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: _Pulse(
+                child: Card(
+                  color: AppColors.accent,
+                  child: ListTile(
+                    onTap: () => context.push('/order/${o.id}'),
+                    leading: const Icon(
+                      Icons.shopping_bag,
+                      color: AppColors.textOnAccent,
+                    ),
+                    title: Text(
+                      context.tr('Order {no} is READY', {
+                        'no': receiptNo(o.id),
+                      }),
+                      style: const TextStyle(
+                        color: AppColors.textOnAccent,
+                        fontWeight: FontWeight.w700,
                       ),
+                    ),
+                    subtitle: Text(
+                      context.tr('Show your pickup QR at the counter'),
+                      style: const TextStyle(color: AppColors.textOnAccent),
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.textOnAccent,
                     ),
                   ),
                 ),
-            ],
-          ),
-        );
-      },
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -280,15 +239,12 @@ class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
   );
 }
 
-/// Closed with ✕ until the app is opened again (not saved on purpose).
-final _shopCardHidden = ValueNotifier(false);
-
 /// Where the koperasi is: green when open, red when closed. Tap for the map.
 class _FindShopCard extends StatelessWidget {
   const _FindShopCard();
 
   void _hide(BuildContext context) {
-    _shopCardHidden.value = true;
+    context.read<HomeViewModel>().hideShopCard();
     showSnack(
       context,
       context.tr(
@@ -299,13 +255,13 @@ class _FindShopCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder(
-      valueListenable: _shopCardHidden,
-      builder: (context, hidden, _) => AnimatedSize(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-        child: hidden ? const SizedBox(width: double.infinity) : _card(context),
-      ),
+    final hidden = context.select<HomeViewModel, bool>(
+      (vm) => vm.shopCardHidden,
+    );
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      child: hidden ? const SizedBox(width: double.infinity) : _card(context),
     );
   }
 

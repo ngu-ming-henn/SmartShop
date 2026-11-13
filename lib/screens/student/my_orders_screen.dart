@@ -7,24 +7,14 @@ import '../../core/theme.dart';
 import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/order_service.dart';
+import '../../viewmodels/student/my_orders_view_model.dart';
 import '../../widgets/common.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/product_widgets.dart';
 
-/// My Orders: Pending / Ready / Collected / Cancelled.
-class MyOrdersScreen extends StatefulWidget {
+/// My Orders: Pending / Ready / Collected / Cancelled ([MyOrdersViewModel]).
+class MyOrdersScreen extends StatelessWidget {
   const MyOrdersScreen({super.key});
-
-  @override
-  State<MyOrdersScreen> createState() => _MyOrdersScreenState();
-}
-
-class _MyOrdersScreenState extends State<MyOrdersScreen> {
-  late final Stream<List<Order>> _orders = context
-      .read<OrderService>()
-      .watchMyOrders(context.read<AuthProvider>().user!.uid);
 
   static const _tabs = [
     (OrderStatus.pending, 'Pending'),
@@ -35,6 +25,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<MyOrdersViewModel>();
     return DefaultTabController(
       length: _tabs.length,
       child: Scaffold(
@@ -49,24 +40,21 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             tabs: [for (final t in _tabs) Tab(text: context.tr(t.$2))],
           ),
         ),
-        body: StreamBuilder<List<Order>>(
-          stream: _orders,
-          builder: (context, snap) {
-            if (snap.hasError) return ErrorView(error: snap.error!);
-            if (!snap.hasData) return const LoadingView();
-            return TabBarView(
-              children: [
-                for (final t in _tabs)
-                  _OrderList(
-                    orders: snap.data!.where((o) => o.status == t.$1).toList(),
-                    emptyText: context.tr('No {status} orders', {
-                      'status': context.tr(t.$1),
-                    }),
-                  ),
-              ],
-            );
-          },
-        ),
+        body: vm.error != null
+            ? ErrorView(error: vm.error!)
+            : vm.loading
+            ? const LoadingView()
+            : TabBarView(
+                children: [
+                  for (final t in _tabs)
+                    _OrderList(
+                      orders: vm.withStatus(t.$1),
+                      emptyText: context.tr('No {status} orders', {
+                        'status': context.tr(t.$1),
+                      }),
+                    ),
+                ],
+              ),
       ),
     );
   }

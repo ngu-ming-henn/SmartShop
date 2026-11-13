@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../core/utils/password.dart';
 import '../../l10n/strings.dart';
-import '../../providers/auth_provider.dart';
+import '../../viewmodels/auth_view_model.dart';
 import '../../widgets/auth_layout.dart';
 import '../../widgets/brand.dart';
 import '../../widgets/common.dart';
@@ -66,7 +66,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _busy = true);
     try {
-      await context.read<AuthProvider>().register(
+      await context.read<AuthViewModel>().register(
         name: _name.text,
         email: _email.text,
         studentId: _staff ? '' : _studentId.text,

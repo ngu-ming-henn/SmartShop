@@ -7,28 +7,17 @@ import '../../core/theme.dart';
 import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
-import '../../services/order_service.dart';
+import '../../viewmodels/common/order_view_model.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_widgets.dart';
 import '../../widgets/receipt_view.dart';
 
 /// Pickup QR while the order is pending / ready; digital receipt once
-/// collected.
-class OrderDetailScreen extends StatefulWidget {
-  const OrderDetailScreen({super.key, required this.orderId});
-  final String orderId;
+/// collected ([OrderViewModel]).
+class OrderDetailScreen extends StatelessWidget {
+  const OrderDetailScreen({super.key});
 
-  @override
-  State<OrderDetailScreen> createState() => _OrderDetailScreenState();
-}
-
-class _OrderDetailScreenState extends State<OrderDetailScreen> {
-  late final Stream<Order?> _order = context.read<OrderService>().watchOrder(
-    widget.orderId,
-  );
-  bool _busy = false;
-
-  Future<void> _cancel(Order order) async {
+  Future<void> _cancel(BuildContext context, Order order) async {
     final ok = await confirm(
       context,
       title: context.tr('Cancel order?'),
@@ -39,51 +28,44 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       cancelLabel: context.tr('Keep'),
       destructive: true,
     );
-    if (!ok || !mounted) return;
-    setState(() => _busy = true);
+    if (!ok || !context.mounted) return;
     try {
-      await context.read<OrderService>().cancelPending(order.id);
-      if (mounted) showSnack(context, context.tr('Order cancelled.'));
+      await context.read<OrderViewModel>().cancel();
+      if (context.mounted) showSnack(context, context.tr('Order cancelled.'));
     } catch (e) {
-      if (mounted) showError(context, e);
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      if (context.mounted) showError(context, e);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<Order?>(
-      stream: _order,
-      builder: (context, snap) {
-        final order = snap.data;
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              order == null
-                  ? context.tr('Order')
-                  : order.isCollected
-                  ? context.tr('Digital receipt')
-                  : context.tr('Order {no}', {'no': receiptNo(order.id)}),
+    final vm = context.watch<OrderViewModel>();
+    final order = vm.order;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          order == null
+              ? context.tr('Order')
+              : order.isCollected
+              ? context.tr('Digital receipt')
+              : context.tr('Order {no}', {'no': receiptNo(order.id)}),
+        ),
+      ),
+      body: vm.error != null
+          ? ErrorView(error: vm.error!)
+          : vm.loading
+          ? const LoadingView()
+          : order == null
+          ? EmptyState(
+              icon: Icons.search_off,
+              title: context.tr('Order not found'),
+            )
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: order.isCollected
+                  ? [ReceiptView(order: order)]
+                  : _activeOrder(context, order),
             ),
-          ),
-          body: snap.hasError
-              ? ErrorView(error: snap.error!)
-              : snap.connectionState == ConnectionState.waiting
-              ? const LoadingView()
-              : order == null
-              ? EmptyState(
-                  icon: Icons.search_off,
-                  title: context.tr('Order not found'),
-                )
-              : ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: order.isCollected
-                      ? [ReceiptView(order: order)]
-                      : _activeOrder(context, order),
-                ),
-        );
-      },
     );
   }
 
@@ -201,7 +183,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         const SizedBox(height: 16),
         OutlinedButton.icon(
           style: OutlinedButton.styleFrom(foregroundColor: AppColors.error),
-          onPressed: _busy ? null : () => _cancel(order),
+          onPressed: context.watch<OrderViewModel>().busy
+              ? null
+              : () => _cancel(context, order),
           icon: const Icon(Icons.close),
           label: Text(context.tr('Cancel order')),
         ),
