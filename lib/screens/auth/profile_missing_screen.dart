@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../core/utils/errors.dart';
 import '../../l10n/strings.dart';
-import '../../providers/auth_provider.dart';
+import '../../viewmodels/auth_view_model.dart';
 import '../../widgets/brand.dart';
 import '../../widgets/common.dart';
 import 'register_screen.dart';
@@ -23,7 +23,7 @@ class ProfileMissingScreen extends StatefulWidget {
 
 class _ProfileMissingScreenState extends State<ProfileMissingScreen> {
   final _form = GlobalKey<FormState>();
-  late final _user = context.read<AuthProvider>().firebaseUser;
+  late final _user = context.read<AuthViewModel>().firebaseUser;
   late final _name = TextEditingController(text: _user?.displayName ?? '');
   final _studentId = TextEditingController();
   bool _busy = false;
@@ -43,7 +43,7 @@ class _ProfileMissingScreenState extends State<ProfileMissingScreen> {
     if (!_form.currentState!.validate()) return;
     setState(() => _busy = true);
     try {
-      await context.read<AuthProvider>().createMissingStudentProfile(
+      await context.read<AuthViewModel>().createMissingStudentProfile(
         name: _name.text,
         studentId: _studentId.text,
       );
@@ -65,7 +65,7 @@ class _ProfileMissingScreenState extends State<ProfileMissingScreen> {
     });
     try {
       // On success the app opens the Staff Dashboard by itself.
-      await context.read<AuthProvider>().joinAsStaff(name: _name.text);
+      await context.read<AuthViewModel>().joinAsStaff(name: _name.text);
     } catch (e) {
       if (mounted) setState(() => _staffError = friendlyError(e));
     } finally {
@@ -75,7 +75,7 @@ class _ProfileMissingScreenState extends State<ProfileMissingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
+    final auth = context.watch<AuthViewModel>();
     return Scaffold(
       appBar: AppBar(
         title: Text(context.tr('Finish your profile')),

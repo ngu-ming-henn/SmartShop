@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme.dart';
 import '../../l10n/strings.dart';
-import '../../providers/auth_provider.dart';
+import '../../viewmodels/auth_view_model.dart';
 import '../../widgets/animated_tick.dart';
 import '../../widgets/auth_layout.dart';
 import '../../widgets/brand.dart';
@@ -46,7 +46,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _busy = true);
     try {
-      await context.read<AuthProvider>().sendPasswordReset(_email.text);
+      await context.read<AuthViewModel>().sendPasswordReset(_email.text);
       if (!mounted) return;
       setState(() => _sent = true);
       _startCooldown();

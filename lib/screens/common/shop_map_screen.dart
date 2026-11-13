@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
@@ -8,7 +9,6 @@ import '../../core/theme.dart';
 import '../../core/utils/format.dart';
 import '../../core/utils/geo.dart';
 import '../../l10n/strings.dart';
-import '../../services/location_service.dart';
 import '../../viewmodels/shop_map_view_model.dart';
 import '../../widgets/brand.dart';
 import '../../widgets/common.dart';
@@ -19,10 +19,7 @@ import '../../widgets/motion.dart';
 /// or motorcycle park, and buttons that open Google Maps for directions or
 /// Street View. The logic is in [ShopMapViewModel] (MVVM).
 class ShopMapScreen extends StatefulWidget {
-  const ShopMapScreen({super.key, this.locationSource});
-
-  /// Tests pass a fake position; the app uses the phone's GPS.
-  final LocationSource? locationSource;
+  const ShopMapScreen({super.key});
 
   @override
   State<ShopMapScreen> createState() => _ShopMapScreenState();
@@ -40,7 +37,7 @@ class _ShopMapScreenState extends State<ShopMapScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _vm = ShopMapViewModel(widget.locationSource ?? GpsLocationSource())
+    _vm = context.read<ShopMapViewModel>()
       ..addListener(_frameOnFirstFix)
       ..start();
   }
@@ -49,7 +46,6 @@ class _ShopMapScreenState extends State<ShopMapScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _vm.removeListener(_frameOnFirstFix);
-    _vm.dispose();
     super.dispose();
   }
 

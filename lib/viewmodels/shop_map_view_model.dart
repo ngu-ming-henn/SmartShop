@@ -1,11 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
 import '../core/constants.dart';
 import '../core/utils/geo.dart';
 import '../services/location_service.dart';
+import 'view_model.dart';
+
+export '../services/location_service.dart' show LocationAccess;
 
 /// A parking spot and how far away it is.
 typedef NearbySpot = ({ParkingSpot spot, double meters});
@@ -14,7 +16,7 @@ typedef NearbySpot = ({ParkingSpot spot, double meters});
 /// draws what this exposes and calls its methods; it never touches the GPS
 /// itself. Distances are measured from you once the GPS has a fix, and from
 /// the koperasi before that (or when location is off).
-class ShopMapViewModel extends ChangeNotifier {
+class ShopMapViewModel extends ViewModel {
   ShopMapViewModel(this._source, [this._spots = parkingSpots]);
 
   static const shop = LatLng(ShopLocation.latitude, ShopLocation.longitude);
@@ -22,7 +24,6 @@ class ShopMapViewModel extends ChangeNotifier {
   final LocationSource _source;
   final List<ParkingSpot> _spots;
   StreamSubscription<LatLng>? _gps;
-  bool _disposed = false;
 
   /// Null while asking for permission.
   LocationAccess? access;
@@ -40,17 +41,17 @@ class ShopMapViewModel extends ChangeNotifier {
     await _gps?.cancel();
     _gps = null;
     access = null;
-    _notify();
+    notify();
     final result = await _source.requestAccess();
-    if (_disposed) return;
+    if (disposed) return;
     access = result;
     if (result == LocationAccess.granted) {
       _gps = _source.positions().listen((position) {
         me = position;
-        _notify();
+        notify();
       });
     }
-    _notify();
+    notify();
   }
 
   Future<void> openSettings() async {
@@ -59,7 +60,7 @@ class ShopMapViewModel extends ChangeNotifier {
 
   void showKind(ParkingKind value) {
     kind = value;
-    _notify();
+    notify();
   }
 
   double? get metersToShop => me == null ? null : metersBetween(me!, shop);
@@ -80,13 +81,8 @@ class ShopMapViewModel extends ChangeNotifier {
     ]..sort((a, b) => a.meters.compareTo(b.meters));
   }
 
-  void _notify() {
-    if (!_disposed) notifyListeners();
-  }
-
   @override
   void dispose() {
-    _disposed = true;
     _gps?.cancel();
     super.dispose();
   }

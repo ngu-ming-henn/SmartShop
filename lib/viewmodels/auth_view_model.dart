@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/utils/errors.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 
@@ -22,8 +23,8 @@ enum AuthStatus {
 
 /// Holds the logged-in user and their role. Also used by go_router as
 /// `refreshListenable` so the app redirects when the login state changes.
-class AuthProvider extends ChangeNotifier {
-  AuthProvider(this._service) {
+class AuthViewModel extends ChangeNotifier {
+  AuthViewModel(this._service) {
     _authSub = _service.authStateChanges().listen(_onAuthChanged);
   }
 
@@ -146,13 +147,23 @@ class AuthProvider extends ChangeNotifier {
   Future<void> updatePhoto(Uint8List? jpeg) =>
       _service.updatePhoto(_user!.uid, jpeg);
 
+  /// Fails with "Your current password is wrong." when it does not match.
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
-  }) => _service.changePassword(
-    currentPassword: currentPassword,
-    newPassword: newPassword,
-  );
+  }) async {
+    try {
+      await _service.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        throw const AppException('Your current password is wrong.');
+      }
+      rethrow;
+    }
+  }
 
   Future<void> sendPasswordReset(String email) =>
       _service.sendPasswordReset(email);

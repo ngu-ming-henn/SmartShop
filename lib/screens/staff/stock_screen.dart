@@ -9,19 +9,14 @@ import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
 import '../../models/product.dart';
 import '../../models/stock_movement.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/expiry_scan_service.dart';
-import '../../services/product_service.dart';
-import '../../services/stock_service.dart';
+import '../../viewmodels/staff/stock_view_model.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_picker.dart';
 import '../../widgets/product_widgets.dart';
 import '../common/scanner_page.dart';
 
-enum _Mode { stockIn, stockOut }
-
 /// Stock In / Out: scan barcode -> quantity -> 📷 read expiry date (AI)
-/// or pick the date manually -> save.
+/// or pick the date manually -> save ([StockViewModel]).
 class StockScreen extends StatefulWidget {
   const StockScreen({super.key, this.initialCode});
   final String? initialCode;
@@ -31,21 +26,9 @@ class StockScreen extends StatefulWidget {
 }
 
 class _StockScreenState extends State<StockScreen> {
-  final _expiryScanner = ExpiryScanService();
   final _qty = TextEditingController(text: '1');
-  late final Stream<List<StockMovement>> _recent = context
-      .read<StockService>()
-      .watchRecentMovements(limit: 15);
 
-  Stream<Product?>? _productStream;
-  String? _barcode;
-  String _source = MovementSource.barcode;
-  _Mode _mode = _Mode.stockIn;
-  DateTime? _expiryDate;
-  bool _expiryFromAi = false;
-  String _outReason = MovementType.expired;
-  bool _busy = false;
-  bool _readingExpiry = false;
+  StockViewModel get _vm => context.read<StockViewModel>();
 
   @override
   void initState() {
@@ -59,27 +42,18 @@ class _StockScreenState extends State<StockScreen> {
 
   @override
   void dispose() {
-    _expiryScanner.dispose();
     _qty.dispose();
     super.dispose();
   }
 
-  String get _staffId => context.read<AuthProvider>().user!.uid;
-
   void _select(Product p, String source) {
-    setState(() {
-      _barcode = p.barcode;
-      _productStream = context.read<ProductService>().watchProduct(p.barcode);
-      _source = source;
-      _expiryDate = null;
-      _expiryFromAi = false;
-      _qty.text = '1';
-    });
+    _qty.text = '1';
+    _vm.select(p, source);
   }
 
   Future<void> _load(String code, String source) async {
     try {
-      final product = await context.read<ProductService>().findByBarcode(code);
+      final product = await _vm.findByBarcode(code);
       if (!mounted) return;
       if (product != null) {
         _select(product, source);
@@ -121,26 +95,19 @@ class _StockScreenState extends State<StockScreen> {
   }
 
   Future<void> _find() async {
-    final p = await showProductPicker(context, activeOnly: false);
+    final p = await showProductPicker(context, products: _vm.allProducts);
     if (p != null && mounted) _select(p, MovementSource.manual);
   }
 
   /// AI expiry-date scanner (design doc 8.4).
   Future<void> _readExpiry() async {
-    setState(() => _readingExpiry = true);
     try {
-      final date = await _expiryScanner.scanExpiryDate();
-      if (!mounted) return;
-      if (date == null) {
+      final date = await _vm.readExpiryDate();
+      if (date == null && mounted) {
         showSnack(
           context,
           context.tr('Date not found, please pick it manually'),
         );
-      } else {
-        setState(() {
-          _expiryDate = date; // staff can still change it
-          _expiryFromAi = true;
-        });
       }
     } catch (e) {
       if (mounted) {
@@ -151,8 +118,6 @@ class _StockScreenState extends State<StockScreen> {
           ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _readingExpiry = false);
     }
   }
 
@@ -160,17 +125,12 @@ class _StockScreenState extends State<StockScreen> {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _expiryDate ?? now.add(const Duration(days: 7)),
+      initialDate: _vm.expiryDate ?? now.add(const Duration(days: 7)),
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 10),
-      helpText: 'Expiry date',
+      helpText: context.tr('Expiry date'),
     );
-    if (picked != null) {
-      setState(() {
-        _expiryDate = picked;
-        _expiryFromAi = false;
-      });
-    }
+    if (picked != null) _vm.setExpiry(picked);
   }
 
   Future<void> _save(Product product) async {
@@ -179,66 +139,37 @@ class _StockScreenState extends State<StockScreen> {
       showSnack(context, context.tr('Enter a valid quantity.'));
       return;
     }
-    setState(() => _busy = true);
-    final stock = context.read<StockService>();
+    final stockIn = _vm.mode == StockMode.stockIn;
     try {
-      switch (_mode) {
-        case _Mode.stockIn:
-          final synced = await stock.stockIn(
-            product: product,
-            quantity: qty,
-            staffId: _staffId,
-            expiryDate: _expiryDate,
-            source: _source,
-          );
-          if (mounted) {
-            showSnack(
-              context,
-              synced
-                  ? context.tr('Stock +{qty} for {name}', {
-                      'qty': qty,
-                      'name': product.name,
-                    })
-                  : context.tr(
-                      'Stock +{qty} saved offline. It will sync when you are online.',
-                      {'qty': qty},
-                    ),
-            );
-          }
-        case _Mode.stockOut:
-          await stock.stockOut(
-            productId: product.barcode,
-            quantity: qty,
-            staffId: _staffId,
-            type: _outReason,
-            source: _source,
-          );
-          if (mounted) {
-            showSnack(
-              context,
-              context.tr('Stock -{qty} for {name}', {
+      final synced = await _vm.save(qty);
+      if (!mounted) return;
+      showSnack(
+        context,
+        !stockIn
+            ? context.tr('Stock -{qty} for {name}', {
                 'qty': qty,
                 'name': product.name,
-              }),
-            );
-          }
-      }
-      if (mounted) {
-        setState(() {
-          _expiryDate = null;
-          _expiryFromAi = false;
-          _qty.text = '1';
-        });
-      }
+              })
+            : synced
+            ? context.tr('Stock +{qty} for {name}', {
+                'qty': qty,
+                'name': product.name,
+              })
+            : context.tr(
+                'Stock +{qty} saved offline. It will sync when you are online.',
+                {'qty': qty},
+              ),
+      );
+      _qty.text = '1';
     } catch (e) {
       if (mounted) showError(context, e);
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<StockViewModel>();
+    final recent = vm.recent;
     return Scaffold(
       appBar: AppBar(title: Text(context.tr('Stock in / out'))),
       body: ListView(
@@ -264,7 +195,7 @@ class _StockScreenState extends State<StockScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          if (_productStream == null)
+          if (!vm.hasSelection)
             Card(
               child: ListTile(
                 leading: Icon(Icons.inventory_2_outlined),
@@ -277,42 +208,26 @@ class _StockScreenState extends State<StockScreen> {
               ),
             )
           else
-            StreamBuilder<Product?>(
-              key: ValueKey(_barcode),
-              stream: _productStream,
-              builder: (context, snap) {
-                if (snap.hasError) return ErrorView(error: snap.error!);
-                final product = snap.data;
-                if (product == null) return const LoadingView();
-                return _form(context, product);
-              },
-            ),
+            _form(context, vm, vm.product!),
           SectionHeader(title: context.tr('Recent stock movements')),
-          StreamBuilder<List<StockMovement>>(
-            stream: _recent,
-            builder: (context, snap) {
-              if (snap.hasError) return ErrorView(error: snap.error!);
-              if (!snap.hasData) return const LoadingView();
-              if (snap.data!.isEmpty) {
-                return Card(
-                  child: ListTile(title: Text(context.tr('No movements yet'))),
-                );
-              }
-              return Card(
-                child: Column(
-                  children: [
-                    for (final m in snap.data!) _MovementTile(movement: m),
-                  ],
-                ),
-              );
-            },
-          ),
+          if (vm.error != null)
+            ErrorView(error: vm.error!)
+          else if (recent == null)
+            const LoadingView()
+          else if (recent.isEmpty)
+            Card(child: ListTile(title: Text(context.tr('No movements yet'))))
+          else
+            Card(
+              child: Column(
+                children: [for (final m in recent) _MovementTile(movement: m)],
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _form(BuildContext context, Product product) {
+  Widget _form(BuildContext context, StockViewModel vm, Product product) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -330,24 +245,24 @@ class _StockScreenState extends State<StockScreen> {
             ),
           ),
         const SizedBox(height: 16),
-        SegmentedButton<_Mode>(
+        SegmentedButton<StockMode>(
           segments: [
             ButtonSegment(
-              value: _Mode.stockIn,
+              value: StockMode.stockIn,
               icon: Icon(Icons.add),
               label: Text(context.tr('Stock in')),
             ),
             ButtonSegment(
-              value: _Mode.stockOut,
+              value: StockMode.stockOut,
               icon: Icon(Icons.remove),
               label: Text(context.tr('Stock out')),
             ),
           ],
-          selected: {_mode},
-          onSelectionChanged: (s) => setState(() {
-            _mode = s.first;
+          selected: {vm.mode},
+          onSelectionChanged: (s) {
             _qty.text = '1';
-          }),
+            vm.setMode(s.first);
+          },
         ),
         const SizedBox(height: 16),
         TextField(
@@ -360,10 +275,10 @@ class _StockScreenState extends State<StockScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        if (_mode == _Mode.stockIn) _expirySection(context),
-        if (_mode == _Mode.stockOut)
+        if (vm.mode == StockMode.stockIn) _expirySection(context, vm),
+        if (vm.mode == StockMode.stockOut)
           DropdownButtonFormField<String>(
-            initialValue: _outReason,
+            initialValue: vm.outReason,
             decoration: InputDecoration(labelText: context.tr('Reason')),
             items: [
               DropdownMenuItem(
@@ -379,27 +294,27 @@ class _StockScreenState extends State<StockScreen> {
                 child: Text(context.tr('Other adjustment')),
               ),
             ],
-            onChanged: (v) => setState(() => _outReason = v!),
+            onChanged: (v) => vm.setOutReason(v!),
           ),
         const SizedBox(height: 16),
         FilledButton.icon(
-          onPressed: _busy ? null : () => _save(product),
-          icon: _busy
+          onPressed: vm.busy ? null : () => _save(product),
+          icon: vm.busy
               ? const SizedBox.square(
                   dimension: 20,
                   child: CircularProgressIndicator(strokeWidth: 2.5),
                 )
               : const Icon(Icons.save),
-          label: Text(switch (_mode) {
-            _Mode.stockIn => context.tr('Save stock in'),
-            _Mode.stockOut => context.tr('Save stock out'),
+          label: Text(switch (vm.mode) {
+            StockMode.stockIn => context.tr('Save stock in'),
+            StockMode.stockOut => context.tr('Save stock out'),
           }),
         ),
       ],
     );
   }
 
-  Widget _expirySection(BuildContext context) {
+  Widget _expirySection(BuildContext context, StockViewModel vm) {
     final theme = Theme.of(context);
     return Card(
       child: Padding(
@@ -413,23 +328,23 @@ class _StockScreenState extends State<StockScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    _expiryDate == null
+                    vm.expiryDate == null
                         ? context.tr('Expiry date: not set')
                         : context.tr('Expiry date: {date}', {
-                            'date': formatDate(_expiryDate!),
+                            'date': formatDate(vm.expiryDate!),
                           }),
                     style: theme.textTheme.titleSmall,
                   ),
                 ),
-                if (_expiryDate != null)
+                if (vm.expiryDate != null)
                   IconButton(
                     tooltip: context.tr('Clear date'),
                     icon: const Icon(Icons.clear),
-                    onPressed: () => setState(() => _expiryDate = null),
+                    onPressed: () => vm.setExpiry(null),
                   ),
               ],
             ),
-            if (_expiryFromAi)
+            if (vm.expiryFromAi)
               Padding(
                 padding: EdgeInsets.only(bottom: 4),
                 child: Pill(
@@ -443,14 +358,14 @@ class _StockScreenState extends State<StockScreen> {
               spacing: 8,
               children: [
                 TextButton.icon(
-                  icon: _readingExpiry
+                  icon: vm.readingExpiry
                       ? const SizedBox.square(
                           dimension: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.document_scanner),
                   label: Text(context.tr('📷 Read expiry date')),
-                  onPressed: _readingExpiry ? null : _readExpiry,
+                  onPressed: vm.readingExpiry ? null : _readExpiry,
                 ),
                 TextButton.icon(
                   icon: const Icon(Icons.calendar_month),

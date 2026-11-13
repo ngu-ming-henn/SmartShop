@@ -5,7 +5,7 @@ import 'package:smartshop/core/utils/format.dart';
 import 'package:smartshop/core/utils/points.dart';
 import 'package:smartshop/models/order.dart';
 import 'package:smartshop/models/product.dart';
-import 'package:smartshop/providers/cart_provider.dart';
+import 'package:smartshop/viewmodels/cart_view_model.dart';
 import 'package:smartshop/services/order_service.dart';
 import 'package:smartshop/services/sample_data.dart';
 
@@ -155,14 +155,14 @@ void main() {
 
   group('cart', () {
     test('never holds more than the stock shown (TC06 guard)', () {
-      final cart = CartProvider();
+      final cart = CartViewModel();
       final p = product(stock: 2);
       expect(cart.add(p, qty: 3), isTrue);
       expect(cart.qtyOf(p.barcode), 2);
       expect(cart.add(p), isFalse);
     });
     test('totals, savings and points preview', () {
-      final cart = CartProvider()
+      final cart = CartViewModel()
         ..add(
           product(barcode: 'bread', priceSen: 390, saveFoodPriceSen: 270),
           qty: 2,
@@ -176,7 +176,7 @@ void main() {
       expect(cart.pointsPreview, 20);
     });
     test('quantity 0 removes the line', () {
-      final cart = CartProvider()..add(product());
+      final cart = CartViewModel()..add(product());
       cart.setQty(product().barcode, 0);
       expect(cart.isEmpty, isTrue);
     });

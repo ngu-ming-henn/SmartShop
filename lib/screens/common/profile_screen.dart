@@ -9,7 +9,7 @@ import '../../core/theme.dart';
 import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
 import '../../models/app_user.dart';
-import '../../providers/auth_provider.dart';
+import '../../viewmodels/auth_view_model.dart';
 import '../../widgets/brand.dart';
 import '../../widgets/common.dart';
 import '../../widgets/motion.dart';
@@ -29,12 +29,12 @@ class ProfileScreen extends StatelessWidget {
       confirmLabel: context.tr('Log out'),
       cancelLabel: context.tr('Cancel'),
     );
-    if (ok && context.mounted) await context.read<AuthProvider>().signOut();
+    if (ok && context.mounted) await context.read<AuthViewModel>().signOut();
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
+    final user = context.watch<AuthViewModel>().user;
     if (user == null) return const Scaffold(body: LoadingView());
 
     final sections = <Widget>[

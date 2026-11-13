@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -6,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../core/utils/password.dart';
 import '../../l10n/strings.dart';
-import '../../providers/auth_provider.dart';
+import '../../viewmodels/auth_view_model.dart';
 import '../../widgets/animated_tick.dart';
 import '../../widgets/brand.dart';
 import '../../widgets/common.dart';
@@ -43,18 +42,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _busy = true);
     try {
-      await context.read<AuthProvider>().changePassword(
+      await context.read<AuthViewModel>().changePassword(
         currentPassword: _current.text,
         newPassword: _new.text,
       );
       if (mounted) setState(() => _done = true);
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        showSnack(context, context.tr('Your current password is wrong.'));
-      } else {
-        showError(context, e);
-      }
     } catch (e) {
       if (mounted) showError(context, e);
     } finally {

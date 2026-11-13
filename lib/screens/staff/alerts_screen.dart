@@ -9,13 +9,12 @@ import '../../core/utils/format.dart';
 import '../../core/utils/points.dart';
 import '../../l10n/strings.dart';
 import '../../models/product.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/product_service.dart';
-import '../../services/stock_service.dart';
+import '../../viewmodels/staff/alerts_view_model.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_widgets.dart';
 
-/// Low stock and near expiry; set the Save Food price from here.
+/// Low stock and near expiry; set the Save Food price from here
+/// ([AlertsViewModel]).
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key, this.initialTab = 0});
   final int initialTab;
@@ -25,9 +24,7 @@ class AlertsScreen extends StatefulWidget {
 }
 
 class _AlertsScreenState extends State<AlertsScreen> {
-  late final Stream<List<Product>> _products = context
-      .read<ProductService>()
-      .watchAllProducts();
+  AlertsViewModel get _vm => context.read<AlertsViewModel>();
 
   Future<void> _setSaveFood(Product p) async {
     final controller = TextEditingController(
@@ -101,7 +98,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
     );
     if (price == null || !mounted) return;
     try {
-      await context.read<ProductService>().setSaveFoodPrice(p.barcode, price);
+      await _vm.startSaveFood(p, price);
       if (mounted) {
         showSnack(
           context,
@@ -118,7 +115,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   Future<void> _endDeal(Product p) async {
     try {
-      await context.read<ProductService>().setSaveFoodPrice(p.barcode, null);
+      await _vm.endSaveFood(p);
       if (mounted) {
         showSnack(
           context,
@@ -161,12 +158,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
     );
     if (qty == null || qty <= 0 || !mounted) return;
     try {
-      await context.read<StockService>().stockOut(
-        productId: p.barcode,
-        quantity: qty,
-        staffId: context.read<AuthProvider>().user!.uid,
-        type: MovementType.expired,
-      );
+      await _vm.writeOff(p, qty);
       if (mounted) {
         showSnack(
           context,
@@ -183,49 +175,37 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Product>>(
-      stream: _products,
-      builder: (context, snap) {
-        final active = (snap.data ?? const <Product>[]).where(
-          (p) => p.isActive,
-        );
-        final low = active.where((p) => p.needsRestock).toList()
-          ..sort((a, b) => a.stock.compareTo(b.stock));
-        final expiry = active.where((p) => p.needsExpiryAction()).toList()
-          ..sort((a, b) => a.expiryDate!.compareTo(b.expiryDate!));
-
-        return DefaultTabController(
-          length: 2,
-          initialIndex: widget.initialTab,
-          child: Scaffold(
-            appBar: AppBar(
-              title: Text(context.tr('Alerts')),
-              bottom: TabBar(
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white70,
-                indicatorColor: Colors.white,
-                tabs: [
-                  Tab(
-                    text: context.tr('Low stock ({count})', {
-                      'count': low.length,
-                    }),
-                  ),
-                  Tab(
-                    text: context.tr('Near expiry ({count})', {
-                      'count': expiry.length,
-                    }),
-                  ),
-                ],
+    final vm = context.watch<AlertsViewModel>();
+    final low = vm.lowStock;
+    final expiry = vm.nearExpiry;
+    return DefaultTabController(
+      length: 2,
+      initialIndex: widget.initialTab,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(context.tr('Alerts')),
+          bottom: TabBar(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            tabs: [
+              Tab(
+                text: context.tr('Low stock ({count})', {'count': low.length}),
               ),
-            ),
-            body: snap.hasError
-                ? ErrorView(error: snap.error!)
-                : !snap.hasData
-                ? const LoadingView()
-                : TabBarView(children: [_lowStock(low), _nearExpiry(expiry)]),
+              Tab(
+                text: context.tr('Near expiry ({count})', {
+                  'count': expiry.length,
+                }),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+        body: vm.error != null
+            ? ErrorView(error: vm.error!)
+            : vm.loading
+            ? const LoadingView()
+            : TabBarView(children: [_lowStock(low), _nearExpiry(expiry)]),
+      ),
     );
   }
 

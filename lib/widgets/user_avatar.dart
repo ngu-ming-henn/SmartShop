@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../core/theme.dart';
 import '../l10n/strings.dart';
-import '../providers/auth_provider.dart';
+import '../viewmodels/auth_view_model.dart';
 import 'common.dart';
 
 /// "Test User" -> "TU"; "?" when there is no name.
@@ -59,7 +59,7 @@ class UserAvatar extends StatelessWidget {
 /// Bottom sheet: take a photo, choose one, or remove it. Saves straight
 /// away; the profile updates live.
 Future<void> changeProfilePhoto(BuildContext context) async {
-  final auth = context.read<AuthProvider>();
+  final auth = context.read<AuthViewModel>();
   final hasPhoto = auth.user?.photo != null;
   final choice = await showModalBottomSheet<String>(
     context: context,

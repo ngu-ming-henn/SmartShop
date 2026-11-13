@@ -6,10 +6,8 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/cart_provider.dart';
-import '../../services/budget_planner_service.dart';
-import '../../services/product_service.dart';
+import '../../models/budget_plan.dart';
+import '../../viewmodels/student/budget_planner_view_model.dart';
 import '../../widgets/brand.dart';
 import '../../widgets/cart_button.dart';
 import '../../widgets/common.dart';
@@ -19,6 +17,7 @@ import '../../widgets/product_widgets.dart';
 /// ✨ AI Budget Planner: budget + the categories the student needs + what
 /// they feel like ("chocolate, no spicy") -> 3 suggested combos of in-stock
 /// items -> "Pre-order this combo" (design doc 8.1, flow 9.6).
+/// Data and actions: [BudgetPlannerViewModel].
 class BudgetPlannerScreen extends StatefulWidget {
   const BudgetPlannerScreen({super.key});
 
@@ -29,10 +28,6 @@ class BudgetPlannerScreen extends StatefulWidget {
 class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
   final _budget = TextEditingController(text: '10.00');
   final _wishes = TextEditingController();
-  final _categories = {...BudgetPlannerService.defaultSlots};
-  List<Combo>? _combos; // null = not asked yet
-  Wishes _usedWishes = Wishes.none;
-  bool _busy = false;
 
   @override
   void dispose() {
@@ -47,46 +42,25 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
       showSnack(context, context.tr('Enter a budget, e.g. 10.00'));
       return;
     }
-    if (_categories.isEmpty) {
+    final vm = context.read<BudgetPlannerViewModel>();
+    if (!vm.hasCategories) {
       showSnack(context, context.tr('Pick at least one category.'));
       return;
     }
     FocusScope.of(context).unfocus();
-    setState(() => _busy = true);
-    final planner = context.read<BudgetPlannerService>();
-    final productService = context.read<ProductService>();
-    final uid = context.read<AuthProvider>().user!.uid;
-    final wishes = Wishes.parse(_wishes.text);
     try {
-      final products = await productService.getActiveProducts();
-      final myCounts = await planner.myPurchaseCounts(uid);
-      if (!mounted) return;
-      setState(() {
-        _usedWishes = wishes;
-        _combos = planner.suggest(
-          budgetSen: budgetSen,
-          products: products,
-          myCounts: myCounts,
-          // Keep the category order of the app (Food, Drinks, ...).
-          slots: [
-            for (final c in productCategories)
-              if (_categories.contains(c)) c,
-          ],
-          wishes: wishes,
-        );
-      });
+      await vm.suggest(budgetSen: budgetSen, wishes: _wishes.text);
     } catch (e) {
       if (mounted) showError(context, e);
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
   }
 
   /// Items go to the cart, then the normal pre-order flow (9.2).
   Future<void> _preorder(Combo combo) async {
-    final cart = context.read<CartProvider>();
-    if (!cart.isEmpty) {
-      final replace = await confirm(
+    final vm = context.read<BudgetPlannerViewModel>();
+    var replace = false;
+    if (vm.cartHasItems) {
+      replace = await confirm(
         context,
         title: context.tr('Replace your cart?'),
         message: context.tr(
@@ -96,18 +70,16 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
         cancelLabel: context.tr('Keep both'),
       );
       if (!mounted) return;
-      if (replace) cart.clear();
     }
-    for (final p in combo.items) {
-      cart.add(p);
-    }
+    vm.addToCart(combo, replaceCart: replace);
     await context.push('/cart');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final combos = _combos;
+    final vm = context.watch<BudgetPlannerViewModel>();
+    final combos = vm.combos;
 
     Widget label(String text) => Padding(
       padding: const EdgeInsets.only(top: 18, bottom: 8),
@@ -158,10 +130,8 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
                 FilterChip(
                   avatar: Text(categoryEmoji(c)),
                   label: Text(context.tr(c)),
-                  selected: _categories.contains(c),
-                  onSelected: (on) => setState(
-                    () => on ? _categories.add(c) : _categories.remove(c),
-                  ),
+                  selected: vm.isPicked(c),
+                  onSelected: (on) => vm.pick(c, on),
                 ),
             ],
           ),
@@ -176,11 +146,7 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
                   children: [
                     for (final m in MealType.values)
                       TextButton(
-                        onPressed: () => setState(
-                          () => _categories
-                            ..clear()
-                            ..addAll(m.slots),
-                        ),
+                        onPressed: () => vm.pickMeal(m),
                         child: Text(context.tr(m.label)),
                       ),
                   ],
@@ -206,7 +172,7 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
           GradientButton(
             label: context.tr('Suggest for me'),
             icon: Icons.auto_awesome,
-            busy: _busy,
+            busy: vm.busy,
             onPressed: _suggest,
           ),
           const SizedBox(height: 8),
@@ -237,7 +203,7 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
                   child: _ComboCard(
                     combo: combos[i],
                     rank: i + 1,
-                    wishes: _usedWishes,
+                    wishes: vm.usedWishes,
                     onPreorder: () => _preorder(combos[i]),
                   ),
                 ),

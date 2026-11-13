@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../core/theme.dart';
 import '../l10n/strings.dart';
-import '../providers/cart_provider.dart';
+import '../viewmodels/cart_view_model.dart';
 import 'motion.dart';
 
 /// Cart icon with the number of items, for app bars.
@@ -13,7 +13,7 @@ class CartButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final count = context.select<CartProvider, int>((c) => c.itemCount);
+    final count = context.select<CartViewModel, int>((c) => c.itemCount);
     return IconButton(
       tooltip: context.tr('Cart'),
       onPressed: () => context.push('/cart'),

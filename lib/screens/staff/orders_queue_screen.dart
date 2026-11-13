@@ -7,14 +7,14 @@ import '../../core/theme.dart';
 import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
 import '../../models/order.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/order_service.dart';
+import '../../viewmodels/staff/orders_queue_view_model.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_widgets.dart';
 import '../common/scanner_page.dart';
 
 /// Orders queue: Accept & pack -> Ready -> scan pickup QR -> Collected;
-/// "Cancel uncollected" after closing time.
+/// "Cancel uncollected" after closing time. Data and actions:
+/// [OrdersQueueViewModel].
 class OrdersQueueScreen extends StatefulWidget {
   const OrdersQueueScreen({super.key});
 
@@ -23,34 +23,22 @@ class OrdersQueueScreen extends StatefulWidget {
 }
 
 class _OrdersQueueScreenState extends State<OrdersQueueScreen> {
-  late final Stream<List<Order>> _queue = context
-      .read<OrderService>()
-      .watchQueue();
-  final _busy = <String>{};
-  bool _cancellingUncollected = false;
+  OrdersQueueViewModel get _vm => context.read<OrdersQueueViewModel>();
 
-  OrderService get _orders => context.read<OrderService>();
-  String get _staffId => context.read<AuthProvider>().user!.uid;
-
-  Future<void> _run(
-    String orderId,
-    Future<void> Function() action, {
-    String? done,
-  }) async {
-    setState(() => _busy.add(orderId));
+  /// Runs a ViewModel action and shows [done] or the error.
+  Future<bool> _run(Future<void> Function() action, {String? done}) async {
     try {
       await action();
       if (mounted && done != null) showSnack(context, done);
+      return true;
     } catch (e) {
       if (mounted) showError(context, e);
-    } finally {
-      if (mounted) setState(() => _busy.remove(orderId));
+      return false;
     }
   }
 
   Future<void> _accept(Order o) => _run(
-    o.id,
-    () => _orders.acceptAndPack(o.id, staffId: _staffId),
+    () => _vm.accept(o),
     done: context.tr('Packed. {name} has been notified.', {
       'name': o.customerName ?? context.tr('The student'),
     }),
@@ -70,11 +58,7 @@ class _OrdersQueueScreenState extends State<OrdersQueueScreen> {
       destructive: true,
     );
     if (!ok || !mounted) return;
-    await _run(
-      o.id,
-      () => _orders.cancelByStaff(o.id, staffId: _staffId),
-      done: context.tr('Order cancelled.'),
-    );
+    await _run(() => _vm.cancel(o), done: context.tr('Order cancelled.'));
   }
 
   Future<void> _collect(Order o) async {
@@ -90,8 +74,9 @@ class _OrdersQueueScreenState extends State<OrdersQueueScreen> {
       cancelLabel: context.tr('Back'),
     );
     if (!ok || !mounted) return;
-    await _run(o.id, () => _orders.markCollected(o.id, staffId: _staffId));
-    if (mounted) await context.push('/receipt/${o.id}');
+    if (await _run(() => _vm.collect(o)) && mounted) {
+      await context.push('/receipt/${o.id}');
+    }
   }
 
   /// Staff scan the pickup QR on the student's phone.
@@ -103,7 +88,7 @@ class _OrdersQueueScreenState extends State<OrdersQueueScreen> {
     );
     if (code == null || !mounted) return;
     try {
-      final order = await _orders.findByPickupCode(code);
+      final order = await _vm.findByPickupCode(code);
       if (!mounted) return;
       if (order == null) {
         showSnack(
@@ -113,7 +98,7 @@ class _OrdersQueueScreenState extends State<OrdersQueueScreen> {
       } else if (order.isReady) {
         await _collect(order);
       } else {
-        showSnack(context, OrderService.notReadyMessage(order)); // TC19
+        showSnack(context, _vm.notReadyMessage(order)); // TC19
       }
     } catch (e) {
       if (mounted) showError(context, e);
@@ -147,9 +132,8 @@ class _OrdersQueueScreenState extends State<OrdersQueueScreen> {
       destructive: true,
     );
     if (!ok || !mounted) return;
-    setState(() => _cancellingUncollected = true);
     try {
-      final cancelled = await _orders.cancelUncollected(staffId: _staffId);
+      final cancelled = await _vm.cancelUncollected();
       if (mounted) {
         showSnack(
           context,
@@ -161,81 +145,70 @@ class _OrdersQueueScreenState extends State<OrdersQueueScreen> {
       }
     } catch (e) {
       if (mounted) showError(context, e);
-    } finally {
-      if (mounted) setState(() => _cancellingUncollected = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Order>>(
-      stream: _queue,
-      builder: (context, snap) {
-        final orders = snap.data ?? const <Order>[];
-        final pending = orders.where((o) => o.isPending).toList();
-        final ready = orders.where((o) => o.isReady).toList();
-        return DefaultTabController(
-          length: 2,
-          child: Scaffold(
-            appBar: AppBar(
-              title: Text(context.tr('Orders queue')),
-              actions: [
-                IconButton(
-                  tooltip: context.tr('Scan pickup QR'),
-                  icon: const Icon(Icons.qr_code_scanner),
-                  onPressed: _scanPickup,
-                ),
-              ],
-              bottom: TabBar(
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white70,
-                indicatorColor: Colors.white,
-                tabs: [
-                  Tab(
-                    text: context.tr('To pack ({count})', {
-                      'count': pending.length,
-                    }),
-                  ),
-                  Tab(
-                    text: context.tr('Ready ({count})', {
-                      'count': ready.length,
-                    }),
+    final vm = context.watch<OrdersQueueViewModel>();
+    final pending = vm.pending;
+    final ready = vm.ready;
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(context.tr('Orders queue')),
+          actions: [
+            IconButton(
+              tooltip: context.tr('Scan pickup QR'),
+              icon: const Icon(Icons.qr_code_scanner),
+              onPressed: _scanPickup,
+            ),
+          ],
+          bottom: TabBar(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            tabs: [
+              Tab(
+                text: context.tr('To pack ({count})', {
+                  'count': pending.length,
+                }),
+              ),
+              Tab(text: context.tr('Ready ({count})', {'count': ready.length})),
+            ],
+          ),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _scanPickup,
+          icon: const Icon(Icons.qr_code_scanner),
+          label: Text(context.tr('Scan pickup QR')),
+        ),
+        body: vm.error != null
+            ? ErrorView(error: vm.error!)
+            : vm.loading
+            ? const LoadingView()
+            : TabBarView(
+                children: [
+                  _list(pending, context.tr('No orders to pack')),
+                  _list(
+                    ready,
+                    context.tr('No orders waiting for pickup'),
+                    header: _uncollectedBar(vm),
                   ),
                 ],
               ),
-            ),
-            floatingActionButton: FloatingActionButton.extended(
-              onPressed: _scanPickup,
-              icon: const Icon(Icons.qr_code_scanner),
-              label: Text(context.tr('Scan pickup QR')),
-            ),
-            body: snap.hasError
-                ? ErrorView(error: snap.error!)
-                : !snap.hasData
-                ? const LoadingView()
-                : TabBarView(
-                    children: [
-                      _list(pending, context.tr('No orders to pack')),
-                      _list(
-                        ready,
-                        context.tr('No orders waiting for pickup'),
-                        header: _uncollectedBar(ready),
-                      ),
-                    ],
-                  ),
-          ),
-        );
-      },
+      ),
     );
   }
 
-  Widget _uncollectedBar(List<Order> ready) {
-    final count = ready.where((o) => o.isUncollected()).length;
+  Widget _uncollectedBar(OrdersQueueViewModel vm) {
+    final count = vm.uncollectedCount;
     return Align(
       alignment: Alignment.centerRight,
       child: OutlinedButton.icon(
         style: OutlinedButton.styleFrom(foregroundColor: AppColors.error),
-        onPressed: _cancellingUncollected
+        onPressed: vm.cancellingUncollected
             ? null
             : () => _cancelUncollected(count),
         icon: const Icon(Icons.event_busy),
@@ -262,7 +235,7 @@ class _OrdersQueueScreenState extends State<OrdersQueueScreen> {
         final order = orders[i - offset];
         return _QueueCard(
           order: order,
-          busy: _busy.contains(order.id),
+          busy: context.watch<OrdersQueueViewModel>().isBusy(order.id),
           onAccept: () => _accept(order),
           onCollect: () => _collect(order),
           onCancel: () => _cancel(order),

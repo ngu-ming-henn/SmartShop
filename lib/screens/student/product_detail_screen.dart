@@ -7,33 +7,24 @@ import '../../core/theme.dart';
 import '../../core/utils/format.dart';
 import '../../l10n/strings.dart';
 import '../../models/product.dart';
-import '../../providers/cart_provider.dart';
-import '../../services/product_service.dart';
+import '../../viewmodels/cart_view_model.dart';
+import '../../viewmodels/student/product_detail_view_model.dart';
 import '../../widgets/cart_button.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_widgets.dart';
 
-class ProductDetailScreen extends StatefulWidget {
-  const ProductDetailScreen({super.key, required this.code});
-  final String code;
+/// One product with its 3D picture, price, stock and Add to cart
+/// ([ProductDetailViewModel]).
+class ProductDetailScreen extends StatelessWidget {
+  const ProductDetailScreen({super.key});
 
-  @override
-  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
-}
-
-class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  late final Stream<Product?> _product = context
-      .read<ProductService>()
-      .watchProduct(widget.code);
-  int _qty = 1;
-
-  void _addToCart(Product product) {
-    final cart = context.read<CartProvider>();
-    if (cart.add(product, qty: _qty)) {
+  void _addToCart(BuildContext context, Product product) {
+    final added = context.read<ProductDetailViewModel>().addToCart();
+    if (added > 0) {
       showSnack(
         context,
         context.tr('Added {qty} × {name} to cart', {
-          'qty': _qty,
+          'qty': added,
           'name': product.name,
         }),
         action: SnackBarAction(
@@ -41,7 +32,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           onPressed: () => context.push('/cart'),
         ),
       );
-      setState(() => _qty = 1);
     } else {
       showSnack(
         context,
@@ -54,42 +44,42 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<Product?>(
-      stream: _product,
-      builder: (context, snap) {
-        final product = snap.data;
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(product?.name ?? context.tr('Product')),
-            actions: const [CartButton()],
-          ),
-          body: switch (snap) {
-            AsyncSnapshot(hasError: true) => ErrorView(error: snap.error!),
-            AsyncSnapshot(connectionState: ConnectionState.waiting) =>
-              const LoadingView(),
-            _ when product == null || !product.isActive => EmptyState(
+    final vm = context.watch<ProductDetailViewModel>();
+    final product = vm.product;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(product?.name ?? context.tr('Product')),
+        actions: const [CartButton()],
+      ),
+      body: vm.error != null
+          ? ErrorView(error: vm.error!)
+          : vm.loading
+          ? const LoadingView()
+          : product == null
+          ? EmptyState(
               icon: Icons.search_off,
               title: context.tr('Product not found — ask staff'),
-              message: context.tr('Code: {code}', {'code': widget.code}),
+              message: context.tr('Code: {code}', {'code': vm.code}),
               action: OutlinedButton(
                 onPressed: () => context.pop(),
                 child: Text(context.tr('Scan again')),
               ),
-            ),
-            _ => _details(context, product),
-          },
-        );
-      },
+            )
+          : _details(context, vm, product),
     );
   }
 
-  Widget _details(BuildContext context, Product product) {
+  Widget _details(
+    BuildContext context,
+    ProductDetailViewModel vm,
+    Product product,
+  ) {
     final theme = Theme.of(context);
-    final inCart = context.select<CartProvider, int>(
+    final inCart = context.select<CartViewModel, int>(
       (c) => c.qtyOf(product.barcode),
     );
     final canAdd = product.stock - inCart;
-    final qty = _qty.clamp(1, canAdd < 1 ? 1 : canAdd);
+    final qty = vm.qty.clamp(1, canAdd < 1 ? 1 : canAdd);
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -232,12 +222,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             QtyStepper(
               value: qty,
               max: canAdd < 1 ? 1 : canAdd,
-              onChanged: canAdd < 1 ? (_) {} : (v) => setState(() => _qty = v),
+              onChanged: canAdd < 1 ? (_) {} : vm.setQty,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton.icon(
-                onPressed: canAdd < 1 ? null : () => _addToCart(product),
+                onPressed: canAdd < 1
+                    ? null
+                    : () => _addToCart(context, product),
                 icon: const Icon(Icons.add_shopping_cart),
                 label: Text(
                   context.tr(

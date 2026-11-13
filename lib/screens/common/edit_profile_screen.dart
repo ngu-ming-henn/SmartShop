@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme.dart';
 import '../../l10n/strings.dart';
-import '../../providers/auth_provider.dart';
+import '../../viewmodels/auth_view_model.dart';
 import '../../widgets/brand.dart';
 import '../../widgets/common.dart';
 import '../../widgets/motion.dart';
@@ -24,7 +24,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _form = GlobalKey<FormState>();
-  late final _user = context.read<AuthProvider>().user!;
+  late final _user = context.read<AuthViewModel>().user!;
   late final _name = TextEditingController(text: _user.name);
   late final _studentId = TextEditingController(text: _user.studentId);
   late final _phone = TextEditingController(text: _user.phone);
@@ -43,7 +43,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _busy = true);
     try {
-      await context.read<AuthProvider>().updateProfile(
+      await context.read<AuthViewModel>().updateProfile(
         name: _name.text,
         studentId: _studentId.text,
         phone: _phone.text,
@@ -126,7 +126,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         listenable: _name,
                         builder: (context, _) => UserAvatar(
                           name: _name.text,
-                          photo: context.select<AuthProvider, Uint8List?>(
+                          photo: context.select<AuthViewModel, Uint8List?>(
                             (a) => a.user?.photo,
                           ),
                           radius: 48,

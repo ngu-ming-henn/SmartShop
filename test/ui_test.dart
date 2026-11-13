@@ -5,8 +5,11 @@ import 'package:provider/provider.dart';
 import 'package:smartshop/core/theme.dart';
 import 'package:smartshop/l10n/strings.dart';
 import 'package:smartshop/models/product.dart';
-import 'package:smartshop/providers/cart_provider.dart';
 import 'package:smartshop/screens/student/budget_planner_screen.dart';
+import 'package:smartshop/services/budget_planner_service.dart';
+import 'package:smartshop/services/product_service.dart';
+import 'package:smartshop/viewmodels/cart_view_model.dart';
+import 'package:smartshop/viewmodels/student/budget_planner_view_model.dart';
 import 'package:smartshop/widgets/deal_widgets.dart';
 import 'package:smartshop/widgets/password_strength.dart';
 import 'package:smartshop/widgets/product_widgets.dart';
@@ -28,7 +31,7 @@ Widget app(
   String language = 'en',
   Brightness brightness = Brightness.light,
 }) => ChangeNotifierProvider(
-  create: (_) => CartProvider(),
+  create: (_) => CartViewModel(),
   child: MaterialApp(
     theme: buildAppTheme(useGoogleFonts: false, brightness: brightness),
     locale: Locale(language),
@@ -36,6 +39,24 @@ Widget app(
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
     home: child,
   ),
+);
+
+/// The planner screen is only tapped here, nothing is loaded from Firebase.
+class _NoProducts implements ProductService {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName}');
+}
+
+/// The Budget Planner View with its ViewModel, as the router builds it.
+Widget planner() => ChangeNotifierProvider(
+  create: (c) => BudgetPlannerViewModel(
+    BudgetPlannerService(),
+    _NoProducts(),
+    c.read<CartViewModel>(),
+    'student-1',
+  ),
+  child: const BudgetPlannerScreen(),
 );
 
 void main() {
@@ -95,7 +116,7 @@ void main() {
 
   group('AI Budget Planner screen', () {
     testWidgets('pick any categories and personalise', (tester) async {
-      await tester.pumpWidget(app(const BudgetPlannerScreen()));
+      await tester.pumpWidget(app(planner()));
       await tester.pump(const Duration(seconds: 1));
       expect(find.text('What do you need?'), findsOneWidget);
       expect(find.text('Personalise (optional)'), findsOneWidget);
@@ -120,7 +141,7 @@ void main() {
     });
 
     testWidgets('shows Malay text', (tester) async {
-      await tester.pumpWidget(app(const BudgetPlannerScreen(), language: 'ms'));
+      await tester.pumpWidget(app(planner(), language: 'ms'));
       await tester.pump(const Duration(seconds: 1));
       expect(find.text('Apa yang anda perlukan?'), findsOneWidget);
       expect(find.text('Cadangkan untuk saya'), findsOneWidget);

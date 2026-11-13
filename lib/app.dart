@@ -7,10 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/router.dart';
 import 'core/theme.dart';
 import 'l10n/strings.dart';
-import 'providers/auth_provider.dart';
-import 'providers/cart_provider.dart';
-import 'providers/notification_watcher.dart';
-import 'providers/settings_provider.dart';
+import 'viewmodels/auth_view_model.dart';
+import 'viewmodels/cart_view_model.dart';
+import 'services/notification_watcher.dart';
+import 'viewmodels/settings_view_model.dart';
 import 'services/auth_service.dart';
 import 'services/budget_planner_service.dart';
 import 'services/order_service.dart';
@@ -31,9 +31,9 @@ class _SmartShopAppState extends State<SmartShopApp> {
   final _stockService = StockService();
   final _orderService = OrderService();
   final _budgetPlanner = BudgetPlannerService();
-  final _cart = CartProvider();
-  late final AuthProvider _auth = AuthProvider(_authService);
-  late final SettingsProvider _settings = SettingsProvider(widget.prefs);
+  final _cart = CartViewModel();
+  late final AuthViewModel _auth = AuthViewModel(_authService);
+  late final SettingsViewModel _settings = SettingsViewModel(widget.prefs);
   final _splash = SplashGate();
   late final GoRouter _router = createRouter(_auth, _splash);
   late final NotificationWatcher _watcher = NotificationWatcher(
